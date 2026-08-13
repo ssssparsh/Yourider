@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,55 +7,77 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useAuthStore } from '../utils/authStore';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState('receptionist1');
-  const [pin, setPin] = useState('1234');
-  const { login, isLoading, error } = useAuthStore();
+  const [password, setPassword] = useState('Reception@123');
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading, error, user } = useAuthStore();
+
+  useEffect(() => {
+    if (user?.isDefaultPassword) {
+      Alert.alert(
+        'Change Password Required',
+        'You must change your default password on first login for security.'
+      );
+    }
+  }, [user?.isDefaultPassword]);
 
   const handleLogin = async () => {
-    if (!username || !pin) {
-      Alert.alert('Error', 'Please enter username and PIN');
+    if (!username || !password) {
+      Alert.alert('Error', 'Please enter username and password');
       return;
     }
 
-    const success = await login(username, pin);
+    const success = await login(username, password);
     if (!success && error) {
       Alert.alert('Login Failed', error);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Guest Facility Manager</Text>
-      <Text style={styles.subtitle}>Secure Income & Expense Tracking</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>Guest Facility Manager</Text>
+        <Text style={styles.subtitle}>Secure Income & Expense Tracking</Text>
+      </View>
 
       <View style={styles.formContainer}>
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Username</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter username"
+            placeholder="Enter your username"
             value={username}
             onChangeText={setUsername}
             editable={!isLoading}
             autoCapitalize="none"
+            placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>PIN</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter PIN"
-            value={pin}
-            onChangeText={setPin}
-            secureTextEntry
-            editable={!isLoading}
-            keyboardType="numeric"
-          />
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              editable={!isLoading}
+              placeholderTextColor="#999"
+            />
+            <TouchableOpacity
+              style={styles.togglePassword}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Text style={styles.toggleText}>{showPassword ? '👁️' : '🔒'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -70,15 +92,32 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+        {error && <Text style={styles.errorText}>❌ {error}</Text>}
       </View>
 
-      <View style={styles.credentialsContainer}>
-        <Text style={styles.credentialsTitle}>Demo Credentials:</Text>
-        <Text style={styles.credentials}>Receptionist: receptionist1 / 1234</Text>
-        <Text style={styles.credentials}>Owner: owner / 5678</Text>
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoTitle}>📋 Default Credentials</Text>
+        <Text style={styles.infoText}>
+          <Text style={styles.bold}>Receptionist 1:</Text> receptionist1 / Reception@123
+        </Text>
+        <Text style={styles.infoText}>
+          <Text style={styles.bold}>Receptionist 2:</Text> receptionist2 / Reception@456
+        </Text>
+        <Text style={styles.infoText}>
+          <Text style={styles.bold}>Owner:</Text> owner / Owner@5678
+        </Text>
+        <Text style={styles.warningText}>
+          ⚠️ You MUST change your password on first login for security.
+        </Text>
       </View>
-    </View>
+
+      <View style={styles.passwordPolicyContainer}>
+        <Text style={styles.policyTitle}>🔐 Password Requirements</Text>
+        <Text style={styles.policyText}>✓ Minimum 6 characters</Text>
+        <Text style={styles.policyText}>✓ At least 1 uppercase letter</Text>
+        <Text style={styles.policyText}>✓ At least 1 number</Text>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -86,13 +125,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    padding: 20,
-    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingTop: 40,
+  },
+  headerContainer: {
+    marginBottom: 32,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1976D2',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -100,13 +144,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 40,
   },
   formContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 24,
-    marginBottom: 24,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -130,8 +173,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingRight: 8,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+  },
+  togglePassword: {
+    padding: 8,
+  },
+  toggleText: {
+    fontSize: 18,
+  },
   loginButton: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#1976D2',
     borderRadius: 8,
     paddingVertical: 14,
     marginTop: 20,
@@ -151,20 +214,54 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     fontSize: 14,
+    fontWeight: '500',
   },
-  credentialsContainer: {
-    backgroundColor: '#fff3e0',
+  infoContainer: {
+    backgroundColor: '#E3F2FD',
     borderRadius: 8,
-    padding: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#1976D2',
   },
-  credentialsTitle: {
-    fontWeight: '600',
-    color: '#f57c00',
-    marginBottom: 8,
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1565C0',
+    marginBottom: 10,
   },
-  credentials: {
+  infoText: {
     fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+    color: '#444',
+    marginBottom: 6,
+    fontFamily: 'monospace',
+  },
+  bold: {
+    fontWeight: '600',
+    color: '#1565C0',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#D32F2F',
+    marginTop: 10,
+    fontWeight: '600',
+  },
+  passwordPolicyContainer: {
+    backgroundColor: '#F3E5F5',
+    borderRadius: 8,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#7B1FA2',
+  },
+  policyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#6A1B9A',
+    marginBottom: 10,
+  },
+  policyText: {
+    fontSize: 12,
+    color: '#444',
+    marginBottom: 6,
   },
 });

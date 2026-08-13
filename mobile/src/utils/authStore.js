@@ -8,10 +8,11 @@ export const useAuthStore = create((set) => ({
   isLoading: false,
   error: null,
 
-  login: async (username, pin) => {
+  // Login with username and password
+  login: async (username, password) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authAPI.login(username, pin);
+      const response = await authAPI.login(username, password);
       const { token, user } = response.data;
 
       await AsyncStorage.setItem('authToken', token);
@@ -24,6 +25,25 @@ export const useAuthStore = create((set) => ({
         error.response?.data?.error || 'Login failed';
       set({ error: errorMessage, isLoading: false });
       return false;
+    }
+  },
+
+  // Change password
+  changePassword: async (currentPassword, newPassword, confirmPassword) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authAPI.changePassword(
+        currentPassword,
+        newPassword,
+        confirmPassword
+      );
+      set({ isLoading: false });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.error || 'Failed to change password';
+      set({ error: errorMessage, isLoading: false });
+      return { success: false, message: errorMessage };
     }
   },
 
@@ -50,4 +70,5 @@ export const useAuthStore = create((set) => ({
   },
 
   setError: (error) => set({ error }),
+  clearError: () => set({ error: null }),
 }));

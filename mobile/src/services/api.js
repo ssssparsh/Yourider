@@ -22,10 +22,18 @@ apiClient.interceptors.request.use(
 
 // Auth API
 export const authAPI = {
-  login: (username, pin) =>
-    apiClient.post('/auth/login', { username, pin }),
+  login: (username, password) =>
+    apiClient.post('/auth/login', { username, password }),
   getCurrentUser: () =>
     apiClient.get('/auth/me'),
+  changePassword: (currentPassword, newPassword, confirmPassword) =>
+    apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    }),
+  resetPassword: (userId, newPassword) =>
+    apiClient.post(`/auth/reset-password/${userId}`, { newPassword }),
 };
 
 // Guest API

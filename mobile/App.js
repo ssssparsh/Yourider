@@ -9,6 +9,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import GuestsScreen from './src/screens/GuestsScreen';
 import AddTransactionScreen from './src/screens/AddTransactionScreen';
+import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -21,6 +22,13 @@ function HomeStack() {
       }}
     >
       <Stack.Screen name="HomeTab" component={HomeScreen} />
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{
+          animationEnabled: true,
+        }}
+      />
       <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
       <Stack.Screen name="Guests" component={GuestsScreen} />
     </Stack.Navigator>

@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../utils/authStore';
 import { reportAPI } from '../services/api';
 
@@ -14,6 +16,25 @@ export default function HomeScreen({ navigation }) {
   const { user, logout } = useAuthStore();
   const [todaySummary, setTodaySummary] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Check if user needs to change password on first login
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user?.isDefaultPassword) {
+        Alert.alert(
+          'Security Required',
+          'You must change your default password for security. Please set a new password.',
+          [
+            {
+              text: 'Change Now',
+              onPress: () => navigation.navigate('ChangePassword'),
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    }, [user?.isDefaultPassword, navigation])
+  );
 
   useEffect(() => {
     loadTodaysSummary();
@@ -32,7 +53,16 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    await logout();
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Logout',
+        onPress: async () => {
+          await logout();
+        },
+        style: 'destructive',
+      },
+    ]);
   };
 
   if (loading) {
