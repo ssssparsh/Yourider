@@ -137,3 +137,31 @@ Entry format:
 - It's also not a CRM primitive regardless — document Q&A only, no email/contact/record-manipulation capability.
 
 **If a NotebookLM-style "ask questions over curated docs" capability is wanted later**, it gets rebuilt from scratch with an explicit human-approval step gating anything sent externally, scoped/revocable credentials (never standing session cookies), and a real audit log — none of which this repo provides. This repo is a cautionary reference, not a starting point for that build.
+
+---
+
+## https://github.com/alirezarezvani/claude-skills — reviewed 2026-08-16
+
+**What it does:** A large (300+ skill) MIT-licensed library of Claude Code skills spanning many business functions — engineering, product, finance, C-suite advisory (`c-level-advisor`), compliance (`compliance-os`, `ra-qm-team`), marketing, and an `orchestration/` directory. It is a **content/prompt marketplace, not a governance or runtime framework** — there is no execution controller, no enforced permission model, no CRM integration anywhere in it (confirmed by a repo-wide grep for "CRM" — zero skills implement or connect to actual CRM software). Notably, its own internal self-audit (`audit/newgen-2026-06/00-MASTER.md`) found real defects in its content, which shapes how much of this gets trusted below.
+
+**Kept — `business-growth/customer-success-manager` and `revenue-operations` logic.** Deterministic churn/health-scoring and pipeline/forecast-analytics scripts are a solid starting point for the *logic* of read-only analytics worker-agents in our own CRM — mined for their scoring approach, not run as-is (see Reshaped).
+
+**Kept — the `agent-decision-receipts` concept.** A tamper-evident, cryptographically-signed receipt for consequential actions (deploy/delete/pay/grant-access), explicitly built for EU AI Act Article 12 record-keeping, with a clear rule for *when* to mint one ("side-effecting AND consequential AND later-provable"). This is a genuinely well-designed primitive for Charter §7's audit-trail requirement — kept as a concept (see Reshaped for how we actually wire it in).
+
+**Kept — the "drafts-only, never send" defense-in-depth pattern** from its email inbox-triage skill: the rule is stated repeatedly in the skill/agent/command text, only draft-verb tool calls are ever used, and a validator scans for any send-shaped call after the fact. Worth extracting as a pattern for our own hard-gated actions, with one correction (see Reshaped).
+
+**Kept — the practice of a candid, published internal self-audit.** The repo's maintainers ran a rubric across every skill and published the results, including dangerous defects, rather than only marketing the numbers. Worth adopting for our own synthesis process: we periodically self-audit our own agent/skill content the same way, not just external repos.
+
+**Reshaped — `agent-decision-receipts` becomes mandatory and hook-enforced, not opt-in.** As shipped, minting a receipt is a per-skill author's choice and depends on an external pip package that isn't wired into the base agent-invocation path — most of the repo's 300+ skills leave no signed record at all. We tie receipt-minting directly into the `PRE_TOOL_CALL` hook already adopted from `crewAI`, so anything on Charter §3's hard-gated list mints a receipt automatically, with no author opt-in required.
+
+**Reshaped — the "drafts-only" pattern moves from detective to preventive.** As shipped, the validator scans the action log *after* a run for a send-shaped call and fails the run if it finds one — the risky action could already have happened by the time it's caught. We reshape this into a pre-emptive block on the `PRE_TOOL_CALL` hook itself, consistent with the "fail closed" correction already made to `crewAI`'s hook semantics — never allow the call in the first place.
+
+**Reshaped — `customer-success-manager`/`revenue-operations` lose their standing tool grants and local-file assumption.** The source skills read from a JSON file the user manually supplies and run under an agent frontmatter granting `[Read, Write, Bash, Grep, Glob]` regardless of what the task needs. Our versions read from our own CRM's data layer instead of a manually-supplied file, and get only the narrow, task-scoped tool grant Charter §2 requires — no standing Bash or Write access for an analytics worker that only ever reads and scores.
+
+**Rejected — the repo's permission/tool-scoping model, wholesale.** Of 27 agents checked, 19 are issued the identical broad toolset `[Read, Write, Bash, Grep, Glob]` regardless of role — including pure-advisory personas like the CEO/CFO advisors that need none of it. This is the direct opposite of Charter §2's zero-access-by-default, and we reject it outright in favor of the per-task narrowed scoping already established from `crewAI`.
+
+**Rejected — the `orchestration/` model as a governance mechanism.** It describes itself explicitly as "no framework, no dependencies, just structured prompting," with human oversight framed as advisory ("override any phase, persona, or skill choice") rather than a hard blocking gate. It gives us no manager/worker authority-boundary mechanism at all — that role stays filled by the per-tier-`Crew` plus allow-listed delegation hook already adopted from `crewAI`.
+
+**Rejected — taking any domain content at face value.** The repo's own audit found content presented confidently that is actively wrong: a repealed FDA regulation taught as current law, an EU MDR risk-acceptability table that itself violates MDR, a misclassified EU AI Act article, and finance scripts that silently output all-zero results with no error. None of this repo's compliance, regulatory, or financial-modeling content is treated as reliable without independent verification first — this matters more than usual given Sparsh is a non-coder relying on us to get this right, not someone positioned to catch a confidently-wrong regulation citation themselves.
+
+**Rejected — trusting any cross-file reference from this repo without checking it resolves.** The audit found 28 of 39 root slash commands, and roughly 16 C-level agent reference citations, pointing at files that no longer exist after a directory reorg. Any skill or command pulled from this repo gets its referenced paths verified before we rely on them, not assumed to work because the frontmatter says so.
