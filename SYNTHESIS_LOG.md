@@ -89,3 +89,51 @@ Entry format:
 **Rejected — `HallucinationGuardrail`.** A no-op stub in the open-source package (paid-tier only). We rely on the functional `LLMGuardrail`/programmatic `Task.guardrail` instead, or a purpose-built fidelity check for CRM data claims (e.g. a worker citing a deal value or contact detail that doesn't match the system of record).
 
 **Rejected — in-tree code-execution sandboxing.** The Docker-based `CodeInterpreterTool` has been removed/deprecated upstream; `allow_code_execution` is now a no-op. If a CRM agent ever needs code execution, we bring our own sandbox (E2B/Daytona have thin wrappers available) rather than depending on crewAI for that safety boundary — and any such surface gets scanned with garak's `exploitation`/`packagehallucination` probes (see above) before it ships.
+
+---
+
+## https://github.com/emilkowalski/skills — reviewed 2026-08-16
+
+**What it does:** A Claude Code Skills package (pure markdown instruction files, no code) by Emil Kowalski (creator of Sonner, Vaul) encoding animation/motion craft and broader interface-design taste — meant to correct the "little mistakes" AI agents make when building UI (wrong easing, animating from nothing, decorative motion on data surfaces, etc.). Unlike the prior three entries, this one is about the CRM's *interface quality*, not its agent architecture.
+
+**Kept — the frequency gate.** Never animate high-frequency actions (keyboard shortcuts, command palette, 100+/day interactions); reserve the "delight budget" for rare, first-time moments. A CRM is a daily-use, high-frequency tool — this maps directly onto how our UI should behave.
+
+**Kept — the concrete motion ruleset.** `transform`/`opacity` only (GPU-safe), sub-300ms UI animations, never `ease-in`, never animate from `scale(0)`, `transform-origin` set to the trigger element. Tight and enforceable — adopted as literal house-style tokens.
+
+**Kept — "data the user is reading or acting on should not move for style."** No decorative motion on functional data surfaces — tables, pipelines, reports. Directly on-point for a CRM; the skill itself cites "no animation on a graph in a banking app" as the standard.
+
+**Kept — the Before/After/Why review table + Block/Approve gate**, as our own UI PR review template. Also kept: **"delete the animation" as the top remedial move** — a useful bias toward restraint on a data-dense app.
+
+**Kept — the read-only-audit → human-vets-and-prioritizes → self-contained plan artifact → explicit do-not-touch boundaries → human sign-off → then execute** structure from its `improve-animations`/`find-animation-opportunities` skills. This is a UI-specific instance of exactly the pattern Charter §3/§9 already requires — worth mirroring as the template for how any CRM worker-agent proposes and stages a UI change generally, not just animation.
+
+**Kept — Apple's eight design principles, feedback taxonomy (status/completion/warning/error), and wayfinding questions** ("Where am I? Where can I go? What's there? How do I get out?") — general UX-quality checklist material, independent of animation.
+
+**Reshaped — the "delight" register.** Springs, bounce, stagger, and 3D-flip recipes are tuned for consumer/marketing products. The CRM defaults to the "crisp dashboard" end of every spectrum these skills offer (the skills themselves acknowledge this split); bouncier recipes become opt-in exceptions, never defaults.
+
+**Reshaped — the bundled stack picks.** One person's opinionated library list (base-ui, Sonner, cmdk, zustand, etc.) with real gaps for a CRM — no data-grid, no form-validation library, no auth. Treated as a supplementary reference for what it covers well (e.g., Virtuoso for large record lists, base-ui for accessible primitives), not adopted as "the stack."
+
+**Rejected — vendor-specific library documentation (`ask-sonner`).** Only relevant if we actually adopt Sonner for toasts; deferred, not adopted standalone.
+
+**Rejected — the prototyping picker UI.** Explicitly a throwaway internal dev harness per its own docs, not a shippable component.
+
+**Noted, not adopted:** the repo has zero content on governance/permissions/approval-gates as a topic — not a gap in its execution (unlike `financial-services`' missing audit log), just outside its scope. Our Charter already covers that ground.
+
+---
+
+## https://github.com/PleasePrompto/notebooklm-skill — reviewed 2026-08-16
+
+**What it does:** A Claude Code Skill that drives a real, stealth-patched Chrome browser against `notebooklm.google.com` to ask questions of an existing NotebookLM notebook and read back Gemini's synthesized answer. Not an API wrapper — NotebookLM has no public API — so this is browser automation riding a standing, logged-in Google session. This entry is the first where the tool itself, not just a detail, gets rejected.
+
+**Kept — the curated-knowledge-library pattern.** Its local JSON library of named/tagged/described knowledge sources an agent can pick from is a reasonable *design* to borrow for an internal CRM knowledge-base selector, entirely independent of NotebookLM itself.
+
+**Kept — confirm-before-destroy on its cleanup script.** A `--confirm` flag plus an explicit yes/no prompt before deleting local auth/library data — small, and consistent with Charter §5's reversibility-by-default spirit for destructive local operations.
+
+**Rejected — the tool itself, as shipped.** The mechanism, not just a detail, conflicts with the Charter:
+- Every query is an **unattended, code-level send of arbitrary text to Google's servers with no approval checkpoint** — a direct conflict with §6 ("no customer data leaves the system without Sparsh's sign-off"). Nothing stops an agent from pasting customer PII into a question.
+- It stores a **live, standing Google account session** (plaintext cookies plus a full browser profile on disk) rather than a scoped, revocable credential — the opposite of §2's least-privilege default.
+- It depends on a human having **already uploaded documents and made the notebook "anyone with link" shareable**, entirely outside this tool's (or our) controls — a customer-data-leaves-the-system event that would need to have already cleared sign-off, upstream and invisible to it.
+- **No audit trail** of what was ever sent — conflicts with §7.
+- The tool is **explicitly ToS-gray by its own author's admission** (built-in bot-detection evasion, a recommendation to use a throwaway Google account "just in case") — not something to embed in a system governed by a strict operating charter.
+- It's also not a CRM primitive regardless — document Q&A only, no email/contact/record-manipulation capability.
+
+**If a NotebookLM-style "ask questions over curated docs" capability is wanted later**, it gets rebuilt from scratch with an explicit human-approval step gating anything sent externally, scoped/revocable credentials (never standing session cookies), and a real audit log — none of which this repo provides. This repo is a cautionary reference, not a starting point for that build.
