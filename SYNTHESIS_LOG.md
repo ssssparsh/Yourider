@@ -55,3 +55,37 @@ Entry format:
 **Reshaped — scan cadence, not every-commit.** `agent_breaker` is disabled by default and depends on configuring a separate red-team model, which adds real cost and latency. We don't run it on every commit — it runs on a periodic/pre-release cadence (same rhythm as a `/cso`-style security review), while cheaper deterministic probes (injection, leakage, exploitation) can run more frequently.
 
 **Rejected — Context-Aware Scanning (CAS).** The maintainers themselves flag it as experimental and incomplete as of mid-2026. We don't build on it yet. Instead, our own Charter (§3, §6) already defines what "acceptable agent behavior" means for this system — that's our policy specification. We revisit CAS as an enforcement mechanism for that policy once it matures, rather than adopting an unfinished subsystem now.
+
+---
+
+## https://github.com/crewAIInc/crewAI — reviewed 2026-08-16
+
+**What it does:** A mature, MIT-licensed, widely-used Python multi-agent orchestration framework. Two composable paradigms: **Crews** (autonomous role-playing agent teams — Agent/Task/Process) and **Flow** (deterministic, event-driven pipelines with typed state that can embed Crews as steps). Unlike the previous two reviews, this is a real candidate for the **orchestration substrate our CEO/manager/worker hierarchy runs on**, not just a source of patterns to copy — so this entry also records a build-vs-adopt decision, not only feature intake.
+
+**Kept — Flow as the deterministic outer shell, Crew as the bounded-autonomy unit.** Map our CEO-agent and each manager's workstream onto separate `Crew` instances, orchestrated by a `Flow` that enforces the actual chain of command and hosts approval gates. This is a working implementation of Charter §1's hierarchy — critically, **never put the CEO-agent, managers, and workers in one shared `Crew`** (see Reshaped, below, for why).
+
+**Kept — `Task.tools` narrowing and action-scoped `apps` grants.** Agent-level tool lists, further narrowed per task, plus action-level scoping strings (e.g. `"gmail/send_email"` rather than whole-app access) are a concrete implementation of Charter §2's least-privilege default — adopt this as the actual mechanism for scoping each worker-agent's toolbox.
+
+**Kept — `PRE_TOOL_CALL` hook with `HookAborted`.** This is the real code-level enforcement point for Charter §3's hard-gated actions list: a hook that inspects an about-to-happen tool call and can block it outright, in-process, before execution — not just an instruction the agent is supposed to remember. This becomes our policy-engine attachment point.
+
+**Kept — `@human_feedback` + async `HumanFeedbackProvider` + `HumanFeedbackPending` + `@persist`.** A Flow step can suspend pending human approval, resume on an external event (e.g. a Slack/CRM-ticket approval), and survive a process restart via checkpointing. This is the closest off-the-shelf match for "nothing gated happens without Sparsh," and pairs with the `PRE_TOOL_CALL` hook as the durable half of that gate.
+
+**Kept — `MemoryScope`/`MemorySlice`.** A built-in way to sandbox what each tier can read and write in shared memory (e.g. a billing worker gets a scope rooted at `/crm/billing` it cannot escape). This gives our "memory is a document, not an agent" principle (established before any repos were reviewed) a structured, access-controlled storage mechanism instead of a flat file.
+
+**Kept — structured `output_pydantic`/`response_model` on tasks.** Forces a worker to emit a typed, schema-validated payload (e.g. an `UpdateDealRequest` object) instead of free text. This makes both guardrails and the human-approval gate tractable — reviewing a typed payload before it executes is far safer than reviewing prose.
+
+**Kept — event bus + OpenTelemetry spans, including `HookDispatchedEvent`.** Every lifecycle point (task start/complete, tool calls, guardrail results, and — importantly — every hook abort) fires a typed event. This is the instrumentation layer for the audit trail Charter §7 requires and that we already committed to building ourselves (see `financial-services`, above) — we subscribe our own listener and persist these events rather than relying on crewAI's default (anonymous, vendor-bound) telemetry.
+
+**Reshaped — delegation is flat and open-by-default within a crew.** `allow_delegation` lets an agent address *any other agent in the same crew* by free-text role-name match — there's no "manager A may delegate only to worker B" concept, and crewAI's own `SecurityConfig` module is an acknowledged stub (its docstring literally lists "Scoping rules: TODO"). We close this gap structurally: **each hierarchy tier lives in its own `Crew`**, so a worker's `Crew.agents` list simply cannot contain the CEO-agent or another domain's workers — plus a custom `PRE_TOOL_CALL` hook that validates the delegation target against an explicit allow-list before `DelegateWorkTool` is allowed to run. This is the direct fix for the "lateral or upward delegation" risk Charter §1 was written to prevent.
+
+**Reshaped — human-in-the-loop as shipped is post-hoc, not pre-action.** `Task.human_input` reviews an agent's output *after* it already ran its full loop — useful for quality review, but not sufficient for Charter §3's "stop before an irreversible action happens." We use the `PRE_TOOL_CALL` hook as the primary gate for anything on the hard-gated-actions list, and reserve `@human_feedback`/`Task.human_input` for softer QA-style review where the action isn't irreversible.
+
+**Reshaped — hooks fail open on unexpected errors.** crewAI's dispatcher swallows generic exceptions from a hook (only an explicitly-raised `HookAborted` reliably blocks a call), to keep a buggy hook from crashing the framework. That default is backwards for a safety gate. Our own policy hook wraps its logic in its own try/except that raises `HookAborted` on *any* internal error — fail closed, not fail open, regardless of what crewAI does by default.
+
+**Reshaped — default anonymous telemetry.** `share_crew` sends usage data to crewAI by default. Per Charter §6 ("no customer data leaves the system without sign-off"), we turn this off explicitly and route all telemetry through our own OTel collector instead of trusting a vendor's claim that no PII is included.
+
+**Rejected — relying on `SecurityConfig` for authorization.** It's identity-only (a stable fingerprint per agent/task/crew) — the framework's own comments mark authentication, scoping, and delegation-token support as not implemented. We build our own authorization/ACL layer on top of the hook system rather than waiting on or assuming this fills in later.
+
+**Rejected — `HallucinationGuardrail`.** A no-op stub in the open-source package (paid-tier only). We rely on the functional `LLMGuardrail`/programmatic `Task.guardrail` instead, or a purpose-built fidelity check for CRM data claims (e.g. a worker citing a deal value or contact detail that doesn't match the system of record).
+
+**Rejected — in-tree code-execution sandboxing.** The Docker-based `CodeInterpreterTool` has been removed/deprecated upstream; `allow_code_execution` is now a no-op. If a CRM agent ever needs code execution, we bring our own sandbox (E2B/Daytona have thin wrappers available) rather than depending on crewAI for that safety boundary — and any such surface gets scanned with garak's `exploitation`/`packagehallucination` probes (see above) before it ships.
