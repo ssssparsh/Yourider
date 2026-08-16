@@ -165,3 +165,21 @@ Entry format:
 **Rejected — taking any domain content at face value.** The repo's own audit found content presented confidently that is actively wrong: a repealed FDA regulation taught as current law, an EU MDR risk-acceptability table that itself violates MDR, a misclassified EU AI Act article, and finance scripts that silently output all-zero results with no error. None of this repo's compliance, regulatory, or financial-modeling content is treated as reliable without independent verification first — this matters more than usual given Sparsh is a non-coder relying on us to get this right, not someone positioned to catch a confidently-wrong regulation citation themselves.
 
 **Rejected — trusting any cross-file reference from this repo without checking it resolves.** The audit found 28 of 39 root slash commands, and roughly 16 C-level agent reference citations, pointing at files that no longer exist after a directory reorg. Any skill or command pulled from this repo gets its referenced paths verified before we rely on them, not assumed to work because the frontmatter says so.
+
+---
+
+## https://github.com/multica-ai/andrej-karpathy-skills — reviewed 2026-08-16
+
+**What it does:** A single Claude Code skill (despite the plural name, the repo contains exactly one) encoding four behavioral principles for how a coding agent should work, inspired by a public tweet from Andrej Karpathy diagnosing common LLM coding-agent failure modes. This entry covers pure engineering *practice*, not permissions or governance, so it interacts with the Charter differently than prior entries — there's nothing here to gate, only house standards to adopt.
+
+**Kept — all four principles, directly, as house engineering practice for every agent that writes code in this project:**
+- **Think Before Coding** — surface assumptions explicitly, present tradeoffs instead of silently picking one interpretation, push back when a simpler approach exists, stop and name the confusion when something is genuinely unclear rather than guessing.
+- **Simplicity First** — minimum code that solves the actual problem; no speculative abstractions, no unrequested configurability, no error handling for scenarios that can't happen. Litmus test: would a senior engineer call this overcomplicated?
+- **Surgical Changes** — touch only what the task requires; don't refactor, reformat, or "improve" adjacent code; every changed line should trace directly to the request; only remove what your own change orphaned.
+- **Goal-Driven Execution** — turn vague asks into verifiable success criteria (write a failing test first, then make it pass; state a plan where every step has an explicit verify check) rather than declaring something done on confidence alone.
+
+These aren't new territory — they reinforce discipline this project already operates under — but they're worth stating explicitly as a named, shared standard so every agent in the hierarchy is held to the same bar consistently, not just whichever agent happens to already have good habits.
+
+**Noted, for accuracy — not a restriction, just a fact worth being straight about.** The repo's branding overstates its connection to Andrej Karpathy: the real tweet is quoted accurately, but the four named principles and their specific rules are a third-party packager's own invention built on top of that tweet, not something Karpathy wrote, reviewed, or endorsed. It's unofficial, fan-derived content. Worth knowing so nobody later cites this as "Karpathy's framework" when the diagnosis is his and the specific solution structure isn't.
+
+**Nothing rejected.** This repo carries no permission model, no orchestration claims, and no compliance content — it doesn't touch any part of the Charter, so unlike prior entries there's no governance conflict to resolve here.
