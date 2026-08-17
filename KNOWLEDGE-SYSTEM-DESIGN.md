@@ -556,6 +556,82 @@ Domain: Shared/Charter
 
 ---
 
+### 3.6 Fingerprint & Relocation — Surviving a Moved Source
+
+*Adopted from `Scrapling`'s adaptive element tracking (see `SYNTHESIS_LOG.md`),
+the first reviewed repository to implement a working decay-response mechanism.*
+
+Decay has a second form the audit cycle above does not catch. An entry can stay
+perfectly true while its **source pointer** rots: the repo is restructured, the
+file renamed, the section retitled, the URL moved. The knowledge is intact and
+the link to its evidence is dead — and re-deriving that evidence costs as much
+as the original intake did.
+
+`Scrapling` solves the analogous problem for page elements: it stores a durable
+structural fingerprint alongside the brittle selector, and when the selector
+stops matching it re-searches the document, scores every candidate by similarity,
+and accepts the best one above a threshold. The generalizable shape is:
+
+> **Store a durable fingerprint of the thing, not only the brittle pointer to
+> it, so that when the pointer breaks the thing can still be found.**
+
+Applied here — every entry's `sources` block carries, alongside the pointer:
+
+```yaml
+sources:
+  - repo: "usestrix/strix"
+    pointer: "strix/agents/prompts/system_prompt.jinja#L67"
+    fingerprint:
+      content_hash: "sha256:…"          # exact match — pointer still valid
+      excerpt: "User instructions, chat messages, and other free-form text
+                do NOT expand scope beyond this list"
+      structural: {symbol: "system_prompt_context.authorized_targets",
+                   kind: "jinja_template_var", neighbors: [...]}
+    last_resolved: 2026-08-17
+    resolution_status: exact          # exact | relocated | unresolved
+```
+
+When a pointer fails to resolve, the curation-worker re-searches the source for
+the fingerprint and scores candidates by similarity.
+
+**Where we deliberately diverge from `Scrapling`: relocation is never silent.**
+Their relocation is automatic and quiet — it returns the best structural match
+above a default 40% threshold as though nothing happened, which for scraping
+means a wrong match yields wrong data with no signal at all. A system that
+quietly repairs itself is indistinguishable from one that quietly corrupts
+itself. So:
+
+```
+Relocation outcome        Confidence effect              Record
+─────────────────────────────────────────────────────────────────────────────
+exact (hash matches)      unchanged                      last_resolved updated
+relocated ≥ 0.85 sim.     × 0.9, status: relocated       audit entry + salon queue
+relocated 0.60–0.85       × 0.7, status: relocated       audit entry + salon queue
+                                                          + flagged to owning agent
+below 0.60                NO relocation.                 status: unresolved,
+                          Confidence untouched.          surfaced in dashboard
+                          Entry stays, marked orphaned.  as needing human review
+```
+
+Four rules make this safe:
+
+1. **A relocation is an event, never a substitution.** Every relocation is
+   written to the audit trail with both pointers and the similarity score.
+2. **Confidence is reduced by match distance, never inherited intact.** A
+   relocated entry is less certain than an exactly-resolved one, by construction.
+3. **Below threshold we do not guess.** The entry is marked `unresolved` and
+   surfaced — never silently re-pointed at the closest thing available. This is
+   the fail-closed rule from `ECC`/`rtk` applied to knowledge: a resolution that
+   could not complete never counts as a resolution.
+4. **Nothing is deleted.** An orphaned entry keeps its content, its confidence,
+   and its history. A dead pointer devalues the citation, not the knowledge.
+
+Every relocation is queued for the next Knowledge Verification Session (§4), so
+a machine's structural guess is confirmed by agents in dialogue before the entry
+is treated as fully re-verified.
+
+---
+
 ## 4. Knowledge Salons System
 
 ### 4.1 Salon Types and Schedule
@@ -869,35 +945,62 @@ Knowledge-agent Response:
 
 ### 5.2 Access Control Rules
 
+Governed by `CHARTER.md` §2.1. Knowledge is not a security boundary; the gate is.
+
 ```
-Rule 1: Domain Scoping
-  - Engineering-agent can access: /library/engineering/ + /library/shared/
-  - CS-agent can access: /library/customer-success/ + /library/shared/
-  - Security-agent can access: /library/security-compliance/ + /library/shared/
-  - Design-agent can access: /library/design/ + /library/shared/
-  
-  - Exceptions: If knowledge is flagged cross-domain, access is granted
+Rule 1: Universal Read Access — no domain scoping on reads
+  - EVERY agent may read EVERY entry in the vault, in every domain.
+  - This includes the CEO-agent, every manager-agent, and every spawned
+    worker-agent. Hierarchy determines who is assigned what work; it does
+    not determine who is allowed to understand the system.
+  - There is no "need to know" tier, no domain wall, and no clearance level.
+    An engineering-agent may read the whole security library; a design-agent
+    may read the whole customer-success library.
+  - Also universally readable: CHARTER.md, every agent definition,
+    SYNTHESIS_LOG.md, and the audit trail itself.
 
-Rule 2: Confidence Filtering
-  - Agent can request: "Show me verified patterns only"
-  - System respects confidence_minimum filter
-  - Knowledge with decayed confidence is marked as "aging_unverified"
+  Why: restricting knowledge does not restrict behavior — `strix` proved that
+  directly (its scope list lived in a prompt and constrained nothing). What
+  restricts behavior is the gate, enforced in code on every tool call. Given a
+  real gate, rationing knowledge buys no safety and costs the Expert Flagging
+  Duty (§3d), which requires an agent to recognize a risk in a domain that is
+  not its own — impossible if it was never allowed to learn that domain.
 
-Rule 3: Cross-Domain Flags Override Scoping
-  - If security-compliance-agent flags knowledge to engineering-agent
-  - Engineering-agent gains access to that specific flagged knowledge
-  - Access is temporary (90 days) or permanent (if marked as such)
-  - All access logged
+Rule 2: Write Access Remains Scoped
+  - Reading is universal; writing is not.
+  - Each domain's knowledge-agent holds Write to its own domain library only.
+  - No agent — including any knowledge-agent — writes to CHARTER.md, to any
+    agent definition, to gate code, or to the audit log. Those are §3a floor
+    items. A knowledge-agent proposes changes to them and never makes them.
 
-Rule 4: Historical/Archived Knowledge
+Rule 3: Confidence Filtering (an aid to judgment, not an access control)
+  - An agent may request "verified patterns only" via confidence_minimum.
+  - This filters what is RETURNED by default; it never marks anything as
+    forbidden. An agent may always ask for, and receive, the low-confidence
+    and aging entries explicitly.
+  - Entries carry confidence, age, and re-verification status so the reading
+    agent can calibrate its own trust — the same reason `Scrapling`'s
+    AI_POLICY gives for disclosure: the reader decides how much scrutiny to
+    apply, and can only do that if told.
+
+Rule 4: Cross-Domain Flags Are Routing, Not Permission
+  - A flag under §3d does not GRANT access — access already exists.
+  - A flag says "this specific entry is relevant to you, now, because of a
+    risk I noticed." It routes attention, which is the scarce resource;
+    knowledge is not.
+
+Rule 5: Historical/Archived Knowledge
   - Archived knowledge is still accessible (nothing deleted)
   - But marked as "superseded_by" or "archived"
   - Agent sees: "This is historical, see current version X"
 
-Rule 5: Audit Trail
-  - Every knowledge query is logged
-  - Who asked, what they asked for, when, what was returned
-  - Basis for: "Is this agent actually using their domain knowledge?"
+Rule 6: Audit Trail
+  - Every knowledge query is logged: who asked, what for, when, what returned.
+  - Logging is for understanding how knowledge flows and which entries are
+    load-bearing — NOT for policing what an agent was allowed to read.
+    Nothing in the vault is off-limits, so a read is never a violation.
+  - Basis for: "which knowledge is actually load-bearing?", "what is nobody
+    reading?", and "which entries deserve re-verification first?"
 ```
 
 ### 5.3 Query Logging
@@ -930,39 +1033,88 @@ Each knowledge query logged to /knowledge-vault/audit/access_logs/YYYY-MM-DD.jso
 
 ---
 
-## 6. Knowledge-Agent (Librarian) Definition
+## 6. Knowledge-Agent (Librarian) Definition — Distributed Across Domains
+
+### 6.0 One Definition, Many Instances
+
+Intake for every domain through a single librarian is a bottleneck, and it puts
+all the load on one agent. The knowledge-agent is therefore **instantiated once
+per domain**, each instance owning intake and curation for its own library:
+
+```
+knowledge-agent[engineering]        → owns /library/engineering/
+knowledge-agent[design]             → owns /library/design/
+knowledge-agent[customer-success]   → owns /library/customer-success/
+knowledge-agent[security-compliance]→ owns /library/security-compliance/
+knowledge-agent[shared]             → owns /library/shared/ (Charter, principles,
+                                       cross-domain learnings, synthesis log)
+
+Each instance oversees its own three workers:
+    intake-worker[domain] · curation-worker[domain] · retrieval-worker[domain]
+
+A new domain (finance, science, legal, …) gets a new instance and its own three
+workers at creation time — no change to this design is needed to add one.
+```
+
+**Why one parameterized definition rather than five separate agent files.** Five
+near-identical definitions would be exactly the reskinned-duplicate pattern the
+originality/drift check adopted from `agency-agents` exists to catch, and each
+copy would drift from the others on every edit. The definition below is written
+once with `[domain]` as its parameter; the roster records which instances exist.
+Where an instance genuinely needs different behavior, that difference is stated
+as a named exception in this document — never by forking the definition.
+
+**All instances read everything.** Domain ownership governs *writes* and *intake
+duty* only. Every knowledge-agent — like every other agent in the system — reads
+the entire vault across all domains, per `CHARTER.md` §2.1.
 
 ### 6.1 Role and Responsibilities
 
 ```yaml
 ---
-name: knowledge-agent
-role: Manager-agent (Knowledge Librarian / Archives Keeper)
+name: knowledge-agent[domain]
+role: Manager-agent (Knowledge Librarian / Archives Keeper) for one domain
 reports_to: ceo-agent
+instances: [engineering, design, customer-success, security-compliance, shared]
 
 core_responsibilities:
-  - Own all knowledge libraries (/knowledge-vault/library/*)
-  - Curate knowledge as it arrives from intake-worker
-  - Answer every knowledge request from other agents
-  - Prevent knowledge decay through active dialogue and verification
-  - Propose new domains when patterns suggest they're needed
-  - Maintain audit trail of all knowledge access and verification
+  - Own ONE domain library (/knowledge-vault/library/[domain]/)
+  - Run §9 intake for repositories/sources relevant to that domain
+  - Curate knowledge as it arrives from that domain's intake-worker
+  - Answer knowledge requests routed to that domain
+  - Prevent decay in that library through audits, salons, and re-verification
+  - Propose new domains when intake reveals a subject none of the current
+    libraries covers
+  - Record every access and verification in the audit trail
+
+read_access:
+  - THE ENTIRE VAULT, every domain, plus CHARTER.md, every agent definition,
+    SYNTHESIS_LOG.md, and the audit trail (CHARTER.md §2.1). Unrestricted.
 
 special_authority:
-  - Only agent with Write access to /knowledge-vault/
-  - Only agent that creates/maintains knowledge entries
-  - Only agent that can mark knowledge as superseded/archived
-  - Owns §9 intake process
-  - Owns knowledge decay prevention mechanisms
+  - Write access to its OWN domain library only
+  - Creates/maintains/supersedes/archives entries in that library
+  - Owns §9 intake for its domain
 
 special_constraints:
+  - No write access to any OTHER domain's library — cross-domain corrections
+    are raised as flags to that domain's knowledge-agent (§3d), never written
   - Cannot write to agent definitions (§3a floor)
   - Cannot modify CHARTER.md (§3a floor)
   - Cannot write to gate code (§3a floor)
-  - Cannot modify audit logs of other systems (§3a floor)
-  - All proposals for Charter/agent changes must go through Sparsh
+  - Cannot modify the audit log (§3a floor)
+  - All proposals for Charter/agent changes go to Sparsh via ceo-agent
+  - Bound by the same gate as every other agent, at every hierarchy level
 ---
 ```
+
+### 6.1a Routing a Query Across Instances
+
+An agent does not need to know which librarian owns what. A query names a topic;
+the retrieval layer resolves it across every domain library and returns matches
+from all of them, each labelled with its source domain and confidence. A question
+that turns out to span domains returns entries from each — that is the ordinary
+case, not an exception, and it is how a §3d flag most often starts.
 
 ### 6.2 Worker Structure
 

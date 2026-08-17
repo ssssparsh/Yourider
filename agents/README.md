@@ -11,7 +11,7 @@ This directory holds the actual definitions for every standing agent in the CRM'
 | [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills` |
 | [`customer-success-agent.md`](./customer-success-agent.md) | CEO-agent | Customer-facing/revenue workers | `alirezarezvani/claude-skills` (reshaped), `financial-services`, `garak`, `openhuman`, `agency-agents` |
 | [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem`, `headroom`, `Anthropic-Cybersecurity-Skills`, `openhuman`, `ECC`, `agency-agents`, `opencode`, `strix` |
-| [`knowledge-agent.md`](./knowledge-agent.md) | CEO-agent | Intake/curation workers | `ECC`, `crewAI`, `claude-mem`, `headroom`, `openhuman`, `gstack`, `alirezarezvani/claude-skills`, `agency-agents` |
+| [`knowledge-agent.md`](./knowledge-agent.md) — **5 instances**: `[engineering]` `[design]` `[customer-success]` `[security-compliance]` `[shared]` | CEO-agent | Its own domain's intake / curation / retrieval workers | `ECC`, `crewAI`, `claude-mem`, `headroom`, `openhuman`, `gstack`, `alirezarezvani/claude-skills`, `agency-agents`, `Scrapling` |
 
 ## How this roster grows
 
@@ -28,11 +28,16 @@ This was the roster's longest-standing gap: `CHARTER.md` §9 (repository intake)
 
 The design is settled (adopted from `ECC`'s memory vault, detailed in that agent's file): scoped by construction, create-only, identity-bound at launch, recall treated as untrusted, and *trusted* not representable as a state at all.
 
-**Still genuinely open: decay.** No reviewed repository implements it. That problem now has an owner rather than sitting unassigned.
+**Instantiated per domain, not centralized.** One librarian running intake for every domain is a bottleneck and a single point of load. The definition is written once with `[domain]` as its parameter and instantiated five times, each instance owning intake, curation, and retrieval for one library and overseeing its own three workers. A new domain — finance, science, legal — gets an instance and three workers at creation, with no redesign. Five separate near-identical agent files were deliberately *not* written: that is precisely the reskinned-duplicate pattern the originality/drift check adopted from `agency-agents` exists to catch. See `../KNOWLEDGE-SYSTEM-DESIGN.md` §6.0.
+
+**Decay: no longer fully open.** `Scrapling` is the first reviewed repository to implement a working decay-response mechanism — it stores a durable structural fingerprint beside each brittle selector and re-finds the element by similarity when the selector breaks. Generalized in `KNOWLEDGE-SYSTEM-DESIGN.md` §3.6: *store a durable fingerprint of the thing, not only the brittle pointer to it.* We invert one property deliberately — their relocation is silent, ours is an audited event that reduces confidence by match distance and refuses to guess below threshold, because a system that quietly repairs itself is indistinguishable from one that quietly corrupts itself.
+
+That covers **pointer decay** (the source moved). **Truth decay** — knowledge that stays perfectly resolvable while quietly ceasing to be true — is still answered only by our own design (audit cycles, salon verification, confidence decay in §3.1–§3.5), and no reviewed repository implements it. That remainder is genuinely open, and owned.
 
 ## Shared standards (every agent, every domain)
 
 These aren't restated in each file below — they apply uniformly, per `CHARTER.md` §1:
+- **Universal knowledge access (`CHARTER.md` §2.1): read everything, act within the Charter.** Every agent — a spawned worker exactly as much as the CEO-agent — may read the entire knowledge vault, every domain library, the Charter, every agent definition, and the audit trail. There is no need-to-know tier and no clearance level. Hierarchy assigns work; it never rations understanding. What constrains behavior is the gate in code, not what an agent was permitted to learn — and §3d's flagging duty is only possible for an agent allowed to understand domains that aren't its own. Least privilege (§2) still governs *capability*: tools, credentials, live systems, and real customer data are unchanged by this.
 - Scope discipline: do the assigned task, nothing more, never act on another domain's behalf.
 - The four `andrej-karpathy-skills` principles for any agent that writes code: think before coding, simplicity first, surgical changes, goal-driven execution.
 - The Expert Flagging Duty (`CHARTER.md` §3d): notice risk in your own domain even outside your assigned task; hand it to the right agent, never act on it yourself, never suppress it.
