@@ -18,7 +18,7 @@ Sparsh (Owner — final authority, sole author of this charter)
    │
 CEO-agent (one) — plans, delegates, reports outcomes. Never executes risky actions itself.
    │
-Manager-agents (grouped by domain, e.g. Engineering / Design / Customer Success / Security-Compliance)
+Manager-agents (grouped by domain — Engineering / Design / Customer Success / Security-Compliance / Knowledge)
    │  — oversee only their own domain's workers. Never act outside their assigned domain.
    │
 Worker-agents (spawned per task, not standing) — execute one scoped task, then stop.
@@ -50,7 +50,7 @@ These six categories are never performed automatically by any agent, regardless 
 
 **Three properties make this a floor rather than a strong preference:**
 1. **It is computed by ordinary code, not by an agent's judgment.** An agent's own risk assessment may only ever make something *more* restricted, never less — an agent cannot reason its way down to permission it wasn't given.
-2. **"Blocked" is categorically different from "ask first."** No approval at any tier authorizes a floor item. There is no prompt, no override click, and no setting — including any future convenience flag — that converts a floor item into an allowed one.
+2. **"Blocked" is categorically different from "ask first" — and is built that way, not merely asserted.** A floor item does not enter the approval path and get refused there; it never enters it at all. No pending request is created, so there is nothing for any person, interface, or automated approver to reply to — an approval mechanism cannot grant what was never put in front of it. The test for whether something truly belongs on this floor is therefore concrete: *can the blocked state be made unrepresentable in the approval pipeline?* Where it can, the item is blocked. Where it cannot, the honest label is "ask first" (§3b), and it is written that way rather than overstated (§11).
 3. **It is enforced in at least two independent places**: at the policy gate, *and* inside the functions that actually perform the action (the delete, the export, the billing change). Relaxing or bypassing one layer does not open the floor.
 
 The six categories:

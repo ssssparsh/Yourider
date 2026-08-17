@@ -2,7 +2,7 @@
 name: ceo-agent
 role: CEO-agent
 reports_to: Sparsh
-oversees: [engineering-agent, design-agent, customer-success-agent, security-compliance-agent]
+oversees: [engineering-agent, design-agent, customer-success-agent, security-compliance-agent, knowledge-agent]
 tools: [Read, Grep, Glob, Agent]
 built_from: [gstack, crewAI]
 ---

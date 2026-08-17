@@ -10,7 +10,8 @@ This directory holds the actual definitions for every standing agent in the CRM'
 | [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak`, `codebase-memory-mcp`, `headroom` |
 | [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills` |
 | [`customer-success-agent.md`](./customer-success-agent.md) | CEO-agent | Customer-facing/revenue workers | `alirezarezvani/claude-skills` (reshaped), `financial-services`, `garak`, `openhuman`, `agency-agents` |
-| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem`, `headroom`, `Anthropic-Cybersecurity-Skills`, `openhuman`, `ECC`, `agency-agents` |
+| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem`, `headroom`, `Anthropic-Cybersecurity-Skills`, `openhuman`, `ECC`, `agency-agents`, `opencode` |
+| [`knowledge-agent.md`](./knowledge-agent.md) | CEO-agent | Intake/curation workers | `ECC`, `crewAI`, `claude-mem`, `headroom`, `openhuman`, `gstack`, `alirezarezvani/claude-skills`, `agency-agents` |
 
 ## How this roster grows
 
@@ -19,19 +20,15 @@ A new repository doesn't automatically get its own agent. When Sparsh feeds a ne
 2. If what's useful in it strengthens an existing agent's domain, that agent's file gets updated in place, with a note on what changed and why.
 3. If it points at a domain none of the current agents own, a new agent file gets added here, and this table gets a new row.
 
-## Open gap: the memory/knowledge substrate — now half-closed
+## The memory/knowledge substrate — now owned
 
-`CHARTER.md` §3d and §9 both assume agents accumulate real, scoped domain expertise over time — that's what the `MemoryScope` concept (adopted from `crewAI`) is for. **Still unbuilt, but the design is now largely settled.**
+This was the roster's longest-standing gap: `CHARTER.md` §9 (repository intake) had no owner at all, and §3d (the Expert Flagging Duty) rests on agents accumulating expertise through that very process. A safety rule was resting on a process nobody ran.
 
-Four repositories were reviewed against this gap. `codebase-memory-mcp` and `claude-mem` turned out to solve adjacent problems (code-structure indexing; session capture/retrieval) and neither offered agent-tier scoping. `ECC`'s Memory Vault then supplied most of what was missing, and is adopted as the reference design:
+[`knowledge-agent.md`](./knowledge-agent.md) now owns it — §9 intake, the synthesis log, and the memory substrate — with one hard boundary: **it may write what the system knows, never what the system is.** Agent definitions, the Charter, gate code, and the audit log are §3a floor items; this agent proposes changes to them and never writes them.
 
-- **Scoped by construction** — `project` / `team` / `user`, where user scope is never included implicitly.
-- **Trust is unrepresentable.** The set of legal trust states contains exactly one value: `unreviewed`. There is no code path that can mark a memory trusted, because "trusted" isn't a value the schema admits. This is the structural answer to stored-false-memory: stronger than any rule telling agents not to trust recalled content.
-- **Create-only.** Memories are never mutated; a correction is a new record that supersedes the old, so the history of what was believed stays intact.
-- **Identity is bound at launch, not supplied by the caller** — and a caller-supplied targeting parameter is explicitly a routing filter, never an authorization boundary.
-- **Recall is untrusted context**, never promoted into policy, rules, or agent definitions without human review — which is now also a floor item (§3a).
+The design is settled (adopted from `ECC`'s memory vault, detailed in that agent's file): scoped by construction, create-only, identity-bound at launch, recall treated as untrusted, and *trusted* not representable as a state at all.
 
-**What remains genuinely open: decay.** No reviewed project implements it — `ECC` included, whose own working-context file carries a hand-written "summarize and archive once stale" rule that went four months unexecuted and drifted to 29KB, demonstrating the failure mode precisely. The closest usable pattern is `ECC`'s 30-day expiry on session summaries, generalized. Designing and building the decay/consolidation layer is ours.
+**Still genuinely open: decay.** No reviewed repository implements it. That problem now has an owner rather than sitting unassigned.
 
 ## Shared standards (every agent, every domain)
 
