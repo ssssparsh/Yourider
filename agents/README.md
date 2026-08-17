@@ -7,10 +7,10 @@ This directory holds the actual definitions for every standing agent in the CRM'
 | Agent | Reports to | Oversees | Built from |
 |---|---|---|---|
 | [`ceo-agent.md`](./ceo-agent.md) | Sparsh | All manager-agents | `gstack` (rhythm), `crewAI` (Flow/manager pattern) |
-| [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak` |
+| [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak`, `codebase-memory-mcp` |
 | [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills` |
 | [`customer-success-agent.md`](./customer-success-agent.md) | CEO-agent | Customer-facing/revenue workers | `alirezarezvani/claude-skills` (reshaped), `financial-services`, `garak` |
-| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI` |
+| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem` |
 
 ## How this roster grows
 
@@ -18,6 +18,10 @@ A new repository doesn't automatically get its own agent. When Sparsh feeds a ne
 1. It goes through the intake process in `CHARTER.md` §9 — logged in `SYNTHESIS_LOG.md` as usual.
 2. If what's useful in it strengthens an existing agent's domain, that agent's file gets updated in place, with a note on what changed and why.
 3. If it points at a domain none of the current agents own, a new agent file gets added here, and this table gets a new row.
+
+## Open gap: the memory/knowledge substrate
+
+`CHARTER.md` §3d and §9 both assume agents accumulate real, scoped domain expertise over time — that's what the `MemoryScope` concept (adopted from `crewAI`) is for. **This is still unbuilt.** Two repositories reviewed specifically to fill this gap (`codebase-memory-mcp`, `claude-mem`) both turned out to be genuine, well-engineered tools for adjacent problems — code-structure indexing and session-memory capture/retrieval, respectively — but neither ships the thing we actually need: per-agent-tier scoped read/write, with old knowledge fading rather than growing forever. `claude-mem` is the closer candidate substrate for storage/retrieval mechanics, and its hardened-observer pattern (now part of `security-compliance-agent`) is worth keeping regardless — but the identity/scope/decay layer on top of whatever storage we use is still ours to design and build.
 
 ## Shared standards (every agent, every domain)
 
