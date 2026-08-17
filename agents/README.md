@@ -7,10 +7,10 @@ This directory holds the actual definitions for every standing agent in the CRM'
 | Agent | Reports to | Oversees | Built from |
 |---|---|---|---|
 | [`ceo-agent.md`](./ceo-agent.md) | Sparsh | All manager-agents | `gstack` (rhythm), `crewAI` (Flow/manager pattern) |
-| [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak`, `codebase-memory-mcp` |
+| [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak`, `codebase-memory-mcp`, `headroom` |
 | [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills` |
 | [`customer-success-agent.md`](./customer-success-agent.md) | CEO-agent | Customer-facing/revenue workers | `alirezarezvani/claude-skills` (reshaped), `financial-services`, `garak` |
-| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem` |
+| [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem`, `headroom`, `Anthropic-Cybersecurity-Skills` |
 
 ## How this roster grows
 
