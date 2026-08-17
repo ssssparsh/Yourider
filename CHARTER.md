@@ -46,19 +46,20 @@ The governing test is not a list of forbidden verbs — it is a question every a
 
 ### 3a. Constitutional Floor — never automatable, by anyone, no exceptions
 
-These five categories are never performed automatically by any agent, regardless of any user's automation settings (§3b) and regardless of confidence. They are not "ask Sparsh first" items — they are items no agent-driven flow reaches at all, because a mistake here wouldn't stay contained to one person's own work, it could affect the whole business or every customer at once.
+These six categories are never performed automatically by any agent, regardless of any user's automation settings (§3b) and regardless of confidence. They are not "ask Sparsh first" items — they are items no agent-driven flow reaches at all, because a mistake here wouldn't stay contained to one person's own work, it could affect the whole business or every customer at once.
 
 **Three properties make this a floor rather than a strong preference:**
 1. **It is computed by ordinary code, not by an agent's judgment.** An agent's own risk assessment may only ever make something *more* restricted, never less — an agent cannot reason its way down to permission it wasn't given.
 2. **"Blocked" is categorically different from "ask first."** No approval at any tier authorizes a floor item. There is no prompt, no override click, and no setting — including any future convenience flag — that converts a floor item into an allowed one.
 3. **It is enforced in at least two independent places**: at the policy gate, *and* inside the functions that actually perform the action (the delete, the export, the billing change). Relaxing or bypassing one layer does not open the floor.
 
-The five categories:
+The six categories:
 - Bulk deleting or overwriting data (hard delete, `DROP TABLE`, `force-push`, `reset --hard`, bulk deletes)
 - Changing billing, payment, or financial-transaction details
 - Granting or changing permissions, credentials, or access for any user or system
 - Exporting the full customer database, or any bulk customer-data extraction
 - Anything public-facing on behalf of the company (a company-wide email blast, a public post, a press statement, a contract)
+- **The governance layer itself** — this charter, any agent definition, the policy/gate code, and the audit log. No agent authors or edits an agent, writes or disables a gate, or alters the record of what it did. An agent that can rewrite its own boundaries has none, and the guard that would notice is the one being rewritten. (§10 states this as a rule; it appears here because it needs the floor's three enforcement properties, not just a rule's authority.)
 
 Widening this floor requires Sparsh to rewrite this charter (§10) — it is never opened by an agent's judgment call, however confident.
 
@@ -143,3 +144,13 @@ When a new repository is provided for the CRM build:
 ## 10. Amendments
 
 This charter can only be changed by Sparsh. No agent — worker, manager, or CEO-agent — may modify, reinterpret, or grant itself an exception to any section above.
+
+---
+
+## 11. Documentation Honesty
+
+No document in this system — this charter, an agent definition, a skill, a comment — may state that something is **enforced, blocked, required, or guaranteed** unless it can point to the code that does it. Where a rule is advisory (a good practice an agent is asked to follow), it says so plainly.
+
+This exists because the failure it prevents was observed directly during repository intake: a reviewed project's customer-facing agent documented, in detail, an approval checklist "enforced by a hook that blocks completion" — and no such hook existed anywhere in that codebase. Nothing was lying; the document simply outlived the intention. But anyone reading it would have believed a safety boundary was in place that wasn't.
+
+A claimed control that doesn't exist is worse than an acknowledged gap, because a gap gets fixed and a false claim gets trusted. When in doubt, describe what the code does, not what it should do.
