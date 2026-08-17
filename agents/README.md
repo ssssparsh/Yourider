@@ -10,7 +10,7 @@ This directory holds the actual definitions for every standing agent in this sys
 |---|---|---|---|
 | [`ceo-agent.md`](./ceo-agent.md) | Sparsh | All manager-agents | `gstack` (rhythm), `crewAI` (Flow/manager pattern) |
 | [`engineering-agent.md`](./engineering-agent.md) | CEO-agent | Engineering workers | `crewAI`, `financial-services`, `andrej-karpathy-skills`, `garak`, `codebase-memory-mcp`, `headroom` |
-| [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills` |
+| [`design-agent.md`](./design-agent.md) | CEO-agent | Design/UI workers | `emilkowalski/skills`, `impeccable`, `Leonxlnx/taste-skill`, `google/material-design-icons`, `ant-design`, `shadcn-ui/ui` |
 | [`customer-success-agent.md`](./customer-success-agent.md) | CEO-agent | Customer-facing/revenue workers | `alirezarezvani/claude-skills` (reshaped), `financial-services`, `garak`, `openhuman`, `agency-agents` |
 | [`security-compliance-agent.md`](./security-compliance-agent.md) | CEO-agent | Security/audit workers | `garak`, `financial-services`, `alirezarezvani/claude-skills` (reshaped), `crewAI`, `rtk`, `claude-mem`, `headroom`, `Anthropic-Cybersecurity-Skills`, `openhuman`, `ECC`, `agency-agents`, `opencode`, `strix`, `ruflo` |
 | [`knowledge-agent.md`](./knowledge-agent.md) — **5 instances**: `[engineering]` `[design]` `[customer-success]` `[security-compliance]` `[shared]` | CEO-agent | Its own domain's intake / curation / retrieval workers | `ECC`, `crewAI`, `claude-mem`, `headroom`, `openhuman`, `gstack`, `alirezarezvani/claude-skills`, `agency-agents`, `Scrapling`, `mem0`, `agentmemory`, `TencentDB-Agent-Memory` |
