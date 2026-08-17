@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Second, independent enforcement layer for CHARTER.md §3a category 6
+(the governance layer itself), per §3a property 3: enforced in at least
+two independent places.
+
+This exists because of a real, confirmed gap found in .claude/hooks/gate.py:
+that hook can only ever see the *text* of a Bash command, never what a
+spawned subprocess actually does. `python3 scripts/scaffold_agent.py
+--name x --kind worker ...` writes into .claude/agents/ from inside the
+Python process — the governed path never appears in the Bash command
+text, so gate.py's Bash-mediated-write check has nothing to match. No
+obfuscation was needed to find this; it's the plain, sanctioned
+scaffold script working exactly as designed, run through Bash.
+
+Rather than trying to patch the text-level check further (a losing game
+against subprocess-mediated writes in general), this hook checks the
+*result* instead: what's actually staged for commit. That's robust
+against how the change happened — a direct Edit, a Bash redirect, a
+Python subprocess, anything — because by the time something is staged,
+the gate.py-bypass question is moot; this only asks "did a governed path
+change."
+
+This is still not complete on its own: it catches an attempted COMMIT of
+a governance-path change, not a change sitting unstaged in the working
+tree. A more complete design would also need working-tree monitoring.
+Documented as a real, current limitation, not silently assumed away —
+see RUNBOOK.md.
+
+Activate in a fresh clone with either:
+    git config core.hooksPath .githooks
+or copy this file to .git/hooks/pre-commit (git does not track
+.git/hooks/ itself, so this tracked copy under .githooks/ is what
+survives a clone; it must be pointed to or copied in explicitly).
+"""
+
+import subprocess
+import sys
+
+GOVERNED_PATHS = (
+    "CHARTER.md",
+    "agents/",
+    ".claude/agents/",
+    ".claude/hooks/",
+    ".claude/settings.json",
+)
+
+OVERRIDE_ENV_VAR = "GOVERNANCE_COMMIT_OVERRIDE"
+
+
+def main() -> int:
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        capture_output=True,
+        text=True,
+    )
+    staged = [line for line in result.stdout.splitlines() if line.strip()]
+
+    hits = []
+    for path in staged:
+        for guarded in GOVERNED_PATHS:
+            needle = guarded.rstrip("/")
+            if path == needle or path.startswith(guarded):
+                hits.append((path, guarded))
+                break
+
+    if not hits:
+        return 0
+
+    import os
+
+    if os.environ.get(OVERRIDE_ENV_VAR) == "1":
+        sys.stderr.write(
+            f"[pre-commit] {OVERRIDE_ENV_VAR}=1 set — allowing a governance-path commit "
+            f"({', '.join(p for p, _ in hits)}). This is the sanctioned path for Sparsh's "
+            "own deliberate governance changes, not something an autonomous agent should "
+            "ever set on its own.\n"
+        )
+        return 0
+
+    sys.stderr.write("BLOCKED (§3a category 6 — governance layer, second enforcement layer):\n")
+    for path, guarded in hits:
+        sys.stderr.write(f"  staged change to '{path}' matches protected pattern '{guarded}'\n")
+    sys.stderr.write(
+        "\nThis is CHARTER.md's second independent enforcement point (§3a property 3) — "
+        "it exists specifically because .claude/hooks/gate.py alone cannot see every route "
+        "to a governance-path write (confirmed: a subprocess-mediated write bypasses it "
+        "entirely, no obfuscation needed).\n"
+        f"If this commit is Sparsh's own deliberate governance change, re-run with "
+        f"{OVERRIDE_ENV_VAR}=1 git commit ...\n"
+    )
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

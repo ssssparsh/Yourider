@@ -49,6 +49,9 @@ CASES = [
     ("grep over CHARTER.md still allows", 0, {"tool_name": "Bash", "tool_input": {"command": "grep -n floor CHARTER.md"}}),
     ("unrelated redirection allows", 0, {"tool_name": "Bash", "tool_input": {"command": "echo hi > /tmp/scratch.txt"}}),
     ("malformed json blocks", 2, "not json"),
+    ("plain rm on CHARTER.md blocks", 2, {"tool_name": "Bash", "tool_input": {"command": "rm CHARTER.md"}}),
+    ("plain rm on agents/ceo-agent.md blocks", 2, {"tool_name": "Bash", "tool_input": {"command": "rm agents/ceo-agent.md"}}),
+    ("plain rm on unrelated file still allows", 0, {"tool_name": "Bash", "tool_input": {"command": "rm scripts/scratch.py"}}),
 ]
 
 

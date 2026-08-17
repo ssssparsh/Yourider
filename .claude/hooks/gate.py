@@ -98,6 +98,27 @@ def _tokens_contain_destructive_rm(tokens: list[str]) -> bool:
     return False
 
 
+def _tokens_contain_rm_on_governed_path(tokens: list[str]) -> str | None:
+    """A single-file `rm CHARTER.md` needs no -r (not a directory) and no
+    -f (non-interactive rm doesn't prompt anyway) to be catastrophic — it
+    was found, live, to slip past the recursive-force check above entirely.
+    Any `rm` naming a governed path, with or without flags, is blocked.
+    """
+    for i, tok in enumerate(tokens):
+        base = tok.rsplit("/", 1)[-1]
+        if base != "rm":
+            continue
+        for arg in tokens[i + 1 :]:
+            if arg.startswith("-"):
+                continue
+            normalized = arg.replace("\\", "/")
+            for guarded in _GOVERNANCE_PATHS:
+                needle = guarded.rstrip("/")
+                if normalized == needle or normalized.startswith(guarded) or normalized.endswith("/" + needle):
+                    return needle
+    return None
+
+
 def _tokens_contain_force_push_or_hard_reset(tokens: list[str]) -> bool:
     joined = " ".join(tokens)
     if re.search(r"\bgit\b.*\bpush\b.*(--force\b|--force-with-lease\b|(?<!\S)-f(?!\S))", joined):
@@ -143,6 +164,16 @@ def _check_bash(command: str) -> str | None:
 
     if _tokens_contain_destructive_rm(tokens):
         return "BLOCKED (§3a category 1 — bulk delete/overwrite): recursive-force rm is a constitutional floor item. No agent automation reaches this, regardless of confidence or automation settings."
+
+    rm_governed = _tokens_contain_rm_on_governed_path(tokens)
+    if rm_governed:
+        return (
+            f"BLOCKED (§3a category 6 — governance layer): this command runs `rm` naming "
+            f"'{rm_governed}', a protected path. A single-file rm needs no -r/-f flags to be "
+            "catastrophic; found live during testing that the recursive-force-only check above "
+            "did not cover this case. Governance files are never deleted by any agent through "
+            "any avenue."
+        )
 
     if _DROP_OR_TRUNCATE_SQL.search(command):
         return "BLOCKED (§3a category 1 — bulk delete/overwrite): DROP/TRUNCATE is a constitutional floor item."
