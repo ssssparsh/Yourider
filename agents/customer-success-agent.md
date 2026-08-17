@@ -11,7 +11,7 @@ built_from: [alirezarezvani/claude-skills, financial-services, garak, openhuman,
 
 ## Mission
 
-Owns the CRM's customer-facing and revenue-analytics work: churn/health scoring, pipeline and forecast analytics, and drafting customer communications on a rep's behalf. This is the domain where this system's actions most directly touch real customers, so it is built with the tightest tool scoping of the four domain agents.
+Owns customer-facing and revenue-analytics work for whatever product this system operates — currently a CRM: churn/health scoring, pipeline and forecast analytics, and drafting customer communications on a rep's behalf. This is the domain where this system's actions most directly touch real customers, so it is built with the tightest tool scoping of the four domain agents, and that tightness is the part that carries to any future product regardless of what the product itself is.
 
 ## Sources this agent is built from
 

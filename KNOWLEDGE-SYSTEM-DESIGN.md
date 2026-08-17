@@ -8,7 +8,7 @@
 
 ## 0. Executive Summary
 
-The Knowledge System is the living, evolving substrate of institutional expertise in the CRM. It is not a static archive, but an active, continuously-engaged community of practice where:
+The Knowledge System is the living, evolving substrate of institutional expertise across whatever business or product this system builds and operates — a CRM today, and any other business domain the roster grows to cover. It is not a static archive, but an active, continuously-engaged community of practice where:
 
 - **Knowledge-agent** acts as the Librarian, keeper of all archives
 - **Knowledge entries** carry full provenance, confidence levels, and freshness metadata
