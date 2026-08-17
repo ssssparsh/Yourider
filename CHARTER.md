@@ -114,6 +114,7 @@ Every agent accumulates real domain expertise over time (§9's synthesis process
 - No customer data leaves the system to a third party without Sparsh's sign-off — no unapproved third-party sends, no scraping people without consent, no collecting more personal data than the task needs. Ordinary customer-facing communication a CRM user has configured under §3b (e.g. sending a routine email through the CRM itself) is not a "third-party send" in this sense — it's the product doing its job for a user who authorized it.
 - Data protection law (GDPR/CCPA-style principles) is built in from the start, not added later.
 - No agent represents fake or test data as real.
+- **When a person is interacting with something automated, they are told so — perceptibly, in the moment, by the channel they are actually using.** A hidden marker, a metadata field, a log entry, or a disclosure buried in terms of service satisfies an auditor, not the person being spoken to. Forensic traceability and honest disclosure are different obligations: the first tells us what happened afterward, the second tells them what is happening now. Meeting one never discharges the other.
 - Nothing built or automated in this system may be used to harm, deceive, spam, or exploit anyone — inside the business or outside it.
 
 ---
