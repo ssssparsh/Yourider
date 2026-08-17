@@ -46,7 +46,14 @@ The governing test is not a list of forbidden verbs — it is a question every a
 
 ### 3a. Constitutional Floor — never automatable, by anyone, no exceptions
 
-These five categories are never performed automatically by any agent, regardless of any user's automation settings (§3b) and regardless of confidence. They are not "ask Sparsh first" items — they are items no agent-driven flow reaches at all, because a mistake here wouldn't stay contained to one person's own work, it could affect the whole business or every customer at once:
+These five categories are never performed automatically by any agent, regardless of any user's automation settings (§3b) and regardless of confidence. They are not "ask Sparsh first" items — they are items no agent-driven flow reaches at all, because a mistake here wouldn't stay contained to one person's own work, it could affect the whole business or every customer at once.
+
+**Three properties make this a floor rather than a strong preference:**
+1. **It is computed by ordinary code, not by an agent's judgment.** An agent's own risk assessment may only ever make something *more* restricted, never less — an agent cannot reason its way down to permission it wasn't given.
+2. **"Blocked" is categorically different from "ask first."** No approval at any tier authorizes a floor item. There is no prompt, no override click, and no setting — including any future convenience flag — that converts a floor item into an allowed one.
+3. **It is enforced in at least two independent places**: at the policy gate, *and* inside the functions that actually perform the action (the delete, the export, the billing change). Relaxing or bypassing one layer does not open the floor.
+
+The five categories:
 - Bulk deleting or overwriting data (hard delete, `DROP TABLE`, `force-push`, `reset --hard`, bulk deletes)
 - Changing billing, payment, or financial-transaction details
 - Granting or changing permissions, credentials, or access for any user or system
@@ -68,6 +75,14 @@ For every action outside the floor above:
 ### 3c. Reversibility is what makes autonomy safe
 
 Because most work is reversible (soft-delete not hard-delete, staging not production, a capped/rate-limited/templated send rather than unlimited free-form), most of it needs no gate at all — see §5. The floor in §3a and the zero-cost rule in §3b exist specifically for the narrow set of actions that aren't reversible.
+
+### 3c-2. Tainted Provenance — a structural override, not a judgment call
+
+Every action carries a typed record of where it originated: a CRM user's direct in-app request, content that arrived from outside (a customer's email, an uploaded document, a synced third-party record), a scheduled background task, or an internal system call. An action whose origin cannot be established is treated as untrusted and denied — never assumed safe.
+
+**Content that arrived from outside the system can never, by itself, cause an action that reaches back outside it** — regardless of any automation setting under §3b, and regardless of whether any agent noticed anything suspicious. This is deliberately *not* dependent on an agent's judgment (§3d covers that case separately): an agent that has been successfully deceived will not flag anything, so the protection cannot rest on the agent recognizing the deception. Provenance is checked mechanically at the gate.
+
+The practical effect: a customer's message can inform a draft, update an internal record, or trigger analysis. It cannot, on its own authority, cause an email to be sent, a charge to be made, or a record to be shared outward. A person's decision, or a rule that person set knowingly in advance, stands between inbound content and any outbound effect.
 
 ### 3d. Expert Flagging Duty
 
