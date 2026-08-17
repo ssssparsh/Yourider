@@ -80,6 +80,8 @@ This is why `scripts/test_gate.py` exists: it constructs test payloads in Python
 
 `knowledge-vault/audit/tool-calls.jsonl` — append-only, one JSON object per line. Two writers: `audit_log.py` (PostToolUse, records tool calls that were *allowed* and actually ran) and `gate.py`'s own `_record_denial` (records a block at the moment it happens, since PostToolUse never fires for a blocked call — **verified empirically**, not assumed; see the git history for the false claim this replaced). Nothing else writes to this path; the gate itself blocks any other writer, including via Bash, per §3 above.
 
+**Deliberately NOT version-controlled**, corrected after a real loop was hit in practice: this file was committed to git for the first pass of this build, and it immediately created a chase-your-tail problem — the log grows on *every* tool call, including the `git status`/`git commit`/`git push` calls used to check and commit it, so checking whether the repo was clean was itself a logged action that made it dirty again. It is `.gitignore`d now (see the entry there) and stays on disk as a real, local, append-only log — operational data, not source. If this log ever needs to be preserved historically (e.g. before a rotation), that's a deliberate snapshot/archive action, not continuous version control.
+
 **Not built:** log rotation, a query/reporting tool over this log, or the "decision-receipt" signing pattern from `alirezarezvani/claude-skills` referenced in `security-compliance-agent.md`. The log is real and growing; nothing reads it back yet except a human with `cat`/`grep`.
 
 ## 7. The knowledge vault
