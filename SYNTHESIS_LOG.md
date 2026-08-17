@@ -183,3 +183,21 @@ These aren't new territory — they reinforce discipline this project already op
 **Noted, for accuracy — not a restriction, just a fact worth being straight about.** The repo's branding overstates its connection to Andrej Karpathy: the real tweet is quoted accurately, but the four named principles and their specific rules are a third-party packager's own invention built on top of that tweet, not something Karpathy wrote, reviewed, or endorsed. It's unofficial, fan-derived content. Worth knowing so nobody later cites this as "Karpathy's framework" when the diagnosis is his and the specific solution structure isn't.
 
 **Nothing rejected.** This repo carries no permission model, no orchestration claims, and no compliance content — it doesn't touch any part of the Charter, so unlike prior entries there's no governance conflict to resolve here.
+
+---
+
+## https://github.com/DeusData/codebase-memory-mcp — reviewed 2026-08-17
+
+**What it does:** Despite the name, this is not an "agent learns and remembers things" system — it's a mature, security-conscious MCP server that parses a codebase with tree-sitter and stores the resulting structure (functions, classes, calls, routes) in a local SQLite graph, so an agent can query "what calls X" or "what's the architecture" in under a millisecond instead of repeatedly grepping the whole repository. This entry corrects an assumption baked into our own `MemoryScope` concept: we expected this to be a candidate implementation of scoped, decaying, multi-agent knowledge memory. It is not that at all, and finding that out cleanly is itself the value of this review.
+
+**Kept — the code-structure graph as a query source for `engineering-agent`'s workers.** Once our own CRM codebase is indexed, a Reader-worker can ask "what calls this function" or "what's the module structure" as a cheap structural query instead of a token-expensive grep sweep. This is a narrow, single-purpose utility — a tool an engineering worker calls, not a memory system any agent trusts with knowledge.
+
+**Kept — the tool-profile allowlist pattern** (Scout / Analysis / Auditor tiers restricting which tool *names* a session can call at all). This reinforces, rather than replaces, the least-privilege tool-scoping we already run via `crewAI`/`financial-services` — another independent data point for the same practice.
+
+**Kept — path containment for any indexing tool** (`CBM_ALLOWED_ROOT`, confining what directory a tool can index). Adopted as a baseline requirement for any external tool `engineering-agent` invokes, not specific to this repo.
+
+**Reshaped — this does not implement `MemoryScope`, and nothing here is used as if it did.** The data model has no agent/role/user identity at all — no column for "whose memory this is" — and no decay, expiration, or consolidation, which directly contradicts the "old learnings should fade" requirement from our own design discussion. The scoped, decaying, per-domain knowledge memory we described stays something we build ourselves; this tool is folded in only as a narrow code-facts source `engineering-agent` may query, never as the memory store itself.
+
+**Rejected — `manage_adr` as a trusted knowledge-write path.** The one tool in this server that writes free-text "knowledge" replaces the *entire* stored document on every call, with no diffing, no versioning, no author attribution, and no approval gate — any tool-enabled session can silently overwrite a team's persisted architecture record, and a future agent would have no way to know it happened. If an ADR-style capability is wanted later, it gets built through the hook-enforced, attributed audit trail `security-compliance-agent` already owns, never adopted as-is from here.
+
+**Rejected — treating indexed source content as pre-sanitized.** The tool does no trust-tagging of what it returns; a malicious comment embedded in a source file would reach an agent's context verbatim through its query tools, the same untrusted-input threat model as `financial-services`' documents. Anything an `engineering-agent` worker receives from this tool still goes through the same Reader-tier isolation as any other untrusted content — the tool's own security hardening protects its supply chain and binary integrity, not the trustworthiness of the code it's reporting on.

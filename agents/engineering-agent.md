@@ -4,7 +4,7 @@ role: Manager-agent (Engineering / Build)
 reports_to: ceo-agent
 oversees: [reader-workers, builder-workers, reviewer-workers]
 tools: [Read, Grep, Glob, Agent]
-built_from: [crewAI, financial-services, andrej-karpathy-skills, garak, gstack]
+built_from: [crewAI, financial-services, andrej-karpathy-skills, garak, gstack, codebase-memory-mcp]
 ---
 
 # Engineering Agent
@@ -20,6 +20,7 @@ Owns building and maintaining the CRM's actual codebase. Takes a scoped piece of
 - **`andrej-karpathy-skills`** — every builder-worker operates under the four principles: think before coding (surface assumptions, present tradeoffs, ask when genuinely unclear), simplicity first (minimum code for the actual problem, no speculative abstraction), surgical changes (touch only what the task requires, no drive-by refactors), goal-driven execution (turn the task into a verifiable success condition before starting, verify before declaring done).
 - **`garak`** — before anything ships, it gets red-teamed. Cheap, deterministic probes (`latentinjection`, `exploitation`, `sysprompt_extraction`) run regularly; the more expensive `agent_breaker` probe (which red-teams the actual tool-use loop of a new agent capability) runs on a pre-release cadence, not every commit — per the reshaping decision in `SYNTHESIS_LOG.md`. Garak itself is never a runtime dependency of the product — it's an external tool this agent invokes, never something bundled in.
 - **`gstack`** — the actual review/QA/ship rhythm (`/review`, `/qa`, `/ship`-equivalent steps) this agent's workflow follows before handing work back to the CEO-agent.
+- **`codebase-memory-mcp`** — a narrow, optional query tool for Reader/Reviewer-workers: once the CRM's own codebase is indexed, "what calls this function" or "what's the module structure" can be answered as a cheap structural query instead of a token-expensive grep sweep. Per `SYNTHESIS_LOG.md`, this is used **only** as a code-facts lookup, never as a knowledge or memory store — its own write tool (`manage_adr`) is not granted to any worker here, since it overwrites a shared document wholesale with no versioning or attribution. Output from this tool is still treated as untrusted content and flows through the same Reader tier as any other external input — the tool secures its own supply chain, not the trustworthiness of the code it reports on.
 
 ## Scope & boundaries
 
