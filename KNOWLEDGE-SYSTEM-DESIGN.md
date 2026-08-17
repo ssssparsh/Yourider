@@ -630,6 +630,98 @@ Every relocation is queued for the next Knowledge Verification Session (§4), so
 a machine's structural guess is confirmed by agents in dialogue before the entry
 is treated as fully re-verified.
 
+### 3.7 Truth Decay — Reconciliation, Lifecycle, and Confidence
+
+*Adopted from the `mem0` / `agentmemory` / `TencentDB-Agent-Memory` cohort (see
+`SYNTHESIS_LOG.md`). §3.6 handles a source that moved; this handles knowledge
+that stayed put and stopped being true.*
+
+**(a) The lifecycle is an enum with no deletable state** *(from `TencentDB-Agent-Memory`)*
+
+```
+draft      → extracted by intake-worker, not yet curated
+candidate  → curated and catalogued, awaiting verification
+approved   → verified in a salon or by re-verification; authoritative
+deprecated → superseded by a newer entry; retained and fully readable
+archived   → historical; retained, readable, excluded from default recall
+failed     → intake could not complete; recorded so the gap stays visible
+```
+
+`archived` is terminal. **There is no `deleted` state**, and the schema validates
+the enum — so a vocabulary that cannot express deletion cannot accidentally
+perform one. This is the same structural move as `ECC`'s "trusted is not a
+representable state," pointed at the opposite end of the lifecycle, and it is
+strictly stronger than a rule saying we don't delete things.
+
+The `candidate → approved` transition is where human or salon review stands.
+Knowledge earns authority by being verified, never by merely arriving.
+
+**(b) Reconciliation: what happens when new knowledge contradicts old** *(from `mem0`, reshaped)*
+
+At write time, the curation-worker recalls the most similar existing entries
+(*conflict recall*, from `TencentDB-Agent-Memory` — you cannot flag a
+contradiction you never looked for) and emits exactly one outcome:
+
+```
+ADD             New subject. No existing entry covers it.
+SUPERSEDE       New entry written; old entry gets superseded_by and moves to
+                `deprecated`. Old content, confidence, and history all intact.
+CONTRADICT-FLAG New knowledge contradicts existing knowledge and the resolution
+                is NOT obvious. Keep BOTH. Lower BOTH confidences. Record the
+                contradiction. Route to the owning domain agent (§3d) and to the
+                next Knowledge Verification Session.
+NONE            Already known. Update last_re_verified_date only.
+```
+
+**No destructive verb exists in this vocabulary.** `mem0`'s equivalent step can
+emit `DELETE`, decided by a model, in the write path; ours cannot express it.
+The most severe outcome available is SUPERSEDE, which is additive.
+
+CONTRADICT-FLAG is the outcome none of the three source repos has, and the one
+this system most needs. Two agents holding contradictory beliefs is a **fact
+about the system worth surfacing**, not an inconsistency to quietly resolve by
+overwriting one of them. Silent resolution is how a system loses the record of
+its own disagreement.
+
+**(c) Confidence decays on a per-entry clock, and use restores it** *(from `agentmemory`)*
+
+```
+baseline    = last_decayed_at OR last_reinforced_at OR created_at
+weeks       = (now - baseline) / 1 week
+decay       = entry.decay_rate * weeks
+confidence  = max(CONFIDENCE_FLOOR, confidence - decay)
+```
+
+Four properties, all adopted:
+
+1. **`decay_rate` is per entry, not per domain.** The domain interval in §3.5 is
+   the *default an entry inherits*; any entry may override it. A volatile fact
+   inside a stable domain should age faster than its neighbours, and a
+   domain-level interval cannot express that.
+2. **Reinforcement resets the clock.** Reading, citing, or verifying an entry
+   updates `last_reinforced_at`. §3.1 asserted "active usage prevents decay" as
+   a strategy with no mechanism behind it; this is the mechanism.
+3. **Confidence floors, never zeroes.** Unverified knowledge becomes
+   *untrusted*, never *absent*.
+4. **Every decay event is audited with before/after state** — `actor: system`,
+   `reason: decay-sweep`, `before: {confidence, status}`, `after: {…}`. Same
+   property as §3.6's relocation rule: *a change the system makes to its own
+   knowledge is an event, never a silent substitution.*
+
+**Where we diverge from `agentmemory`: decay never removes from recall.** Their
+sweep eventually soft-deletes a bottomed-out entry, hiding it from retrieval.
+Ours stops at the floor — the entry stays retrievable forever, marked
+`aging_unverified`, and an explicit query always returns it. Knowledge here is
+the record of *why we decided what we decided*, and a stale entry is often
+exactly what a future intake needs to understand a past decision. Confidence
+tells the reader how far to trust it; nothing has to disappear for that to work.
+
+**(d) The sweep must survive its own process.** `agentmemory` runs decay on a
+`setInterval` inside the server. Ours is a scheduled job with a durable record
+of its last completed run, so a **missed cycle is visible rather than silently
+skipped** — the precise failure `ECC` demonstrated when its own archive-stale-
+content rule went four months unexecuted and grew into 29KB of drift.
+
 ---
 
 ## 4. Knowledge Salons System

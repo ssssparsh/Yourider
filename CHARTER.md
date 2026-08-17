@@ -139,6 +139,17 @@ Every agent accumulates real domain expertise over time (§9's synthesis process
 - **When a person is interacting with something automated, they are told so — perceptibly, in the moment, by the channel they are actually using.** A hidden marker, a metadata field, a log entry, or a disclosure buried in terms of service satisfies an auditor, not the person being spoken to. Forensic traceability and honest disclosure are different obligations: the first tells us what happened afterward, the second tells them what is happening now. Meeting one never discharges the other.
 - Nothing built or automated in this system may be used to harm, deceive, spam, or exploit anyone — inside the business or outside it.
 
+### 6a. Data Collection Is Owner-Directed — agents hold the capability, never the initiative
+
+An agent may hold a full data-collection capability (fetching, parsing, crawling). **It never chooses what to collect.** Targets come from Sparsh, or from a rule Sparsh set knowingly in advance — never from the agent's own judgment about what would be useful, and never from content the agent read while working.
+
+- **The target list is an input to the gate, not a note in a prompt.** It is supplied with the task, checked in the function that performs the fetch, and re-checked at every delegation hop. A repository reviewed under §9 (`strix`) put its authorized-target list in the agent's system prompt where no code could read it; the list constrained nothing while appearing to constrain everything. Ours is only real where it is enforced (§11).
+- **Nothing an agent reads while working can add a target.** A crawled page that links elsewhere, a document that names another system, an instruction embedded in fetched content — none of these expand the list. This is §3c-2 applied to collection: externally-sourced content cannot, on its own authority, cause an action that reaches back outside.
+- **An unrecognized target is refused, not inferred.** A target that does not resolve against the supplied list is denied outright. No nearest-match, no "clearly they meant this."
+- **Collected content is tainted on arrival.** Anything fetched enters the system under §3c-2 as external content: it can inform a draft, populate an internal record, or feed analysis. It cannot, by itself, cause an outbound effect.
+
+**What this rule does not settle.** Owner-directed targeting answers *agent initiative* — the agent will not wander. It does not by itself answer the target's own wishes. Sparsh can authorize an agent to act for him; he cannot authorize it to override a third party's refusal, because that is not his to grant. So a site's `robots.txt` is obeyed by default, a rate limit or `Retry-After` is honored, and **anti-bot evasion is not a capability this system holds** — no fingerprint spoofing, no CAPTCHA solving, no proxy rotation to appear as many visitors. The principle under §6's disclosure rule is that the other party's ability to refuse must remain real; evasion is precisely the removal of it. An authorized target that declines is a target that declines, and the task is left incomplete and visible in the record (§3b) rather than routed around.
+
 ---
 
 ## 7. Audit Trail

@@ -573,3 +573,76 @@ Ours obeys by default, distinguishes 404 (allow) from 5xx/timeout/network error 
 **Rejected — the disclaimer as a control, and the pattern it completes.** The README states the library "is provided for educational and research purposes only," that users "agree to comply with local and international data scraping and privacy laws," and to "[a]lways respect the terms of service of websites and robots.txt files" — in a package that ships robots compliance disabled and a Cloudflare solver behind a keyword argument. Nothing here is dishonest: the disclaimer is accurate about intent, the code is accurate about capability, and the author is not pretending otherwise. But this is `strix`'s prompt-only scope one step further out — the constraint lives in prose the machine never reads, and the shipped default contradicts it. Two consecutive reviews landing on the same shape is what makes it a pattern worth naming rather than an incident: **where a stated norm and a default setting disagree, the default is the actual policy.** Applied to us: every norm in this charter that matters is either a default in code or is labelled advisory under §11.
 
 **Noted — the adoption boundary, under §2.** If we ever take the parsing core, the shipped MCP server and agent-skill are the vector by which the evasion capability would arrive attached to it — both expose the fetchers, not just the parser. §2 (permissions and configuration are never inherited from a source repo) makes the split explicit: **the parser, the storage layer, and the fingerprint/relocation model are candidates for adoption; the fetchers, the stealth session classes, the proxy rotation, and the shipped skill are not** — and adopting the former must not pull the latter in as a transitive dependency. Recorded here so a future intake cannot treat "we already reviewed Scrapling" as covering the whole package.
+
+---
+
+## Memory-system cohort — `mem0`, `agentmemory`, `TencentDB-Agent-Memory` — reviewed 2026-08-17
+
+These three were provided together and reviewed together against one question this system had left open across nineteen prior reviews: **truth decay** — knowledge that stays perfectly resolvable and quietly stops being true. `Scrapling` had just closed *pointer* decay (the citation rots while the knowledge holds). This cohort closes the other half, and the three repos happen to answer three different parts of it. They are logged separately below but the comparison is the point.
+
+---
+
+## https://github.com/mem0ai/mem0 — reviewed 2026-08-17
+
+**What it does:** Apache-2.0 memory layer for LLM agents. Extracts facts from conversation, embeds them into a vector store (optionally a graph store alongside), and on every write compares new facts against existing memories to decide what changes. Mature, widely adopted, with a hosted product alongside the OSS core.
+
+**Kept — the four-outcome reconciliation decision, which is the shape truth decay needs.** `DEFAULT_UPDATE_MEMORY_PROMPT` compares each newly extracted fact against retrieved existing memories and emits one of `ADD` / `UPDATE` / `DELETE` / `NONE`. This is the right *structure*, and it is the thing we were missing: our design had audit cycles and salons that ask "is this still true?" but no defined decision an intake could produce when new knowledge **contradicts** existing knowledge. Their worked example is exactly the case — memory holds "Loves cheese pizza," a new fact says "Dislikes cheese pizza," and the system must resolve it rather than store both silently.
+
+**Kept — history is retained across a delete.** Their SQLite `history` table records `memory_id`, `old_memory`, `new_memory`, `event`, `actor_id`, `role`, `created_at`, `updated_at`, `is_deleted`. A deletion removes the entry from the recall index but the history row preserves what it said and who changed it. That separation — **removal from active recall is not removal from the record** — is a genuinely good pattern and close to our archive model. Worth stating fairly, because the DELETE verb reads worse than the implementation actually is.
+
+**Reshaped — DELETE becomes SUPERSEDE, and the vocabulary changes with it.** We adopt the decision point and change the outcomes to `ADD` / `SUPERSEDE` / `CONTRADICT-FLAG` / `NONE`:
+- **SUPERSEDE** writes a new entry, points `superseded_by` at it, and leaves the old entry in place with its confidence and history intact. This is `ECC`'s create-only model (already adopted): a correction is a new record, never a mutation.
+- **CONTRADICT-FLAG** is the outcome mem0 has no equivalent for and the one we most need. When new knowledge contradicts existing knowledge and the resolution is *not* obvious, the correct action is neither to overwrite nor to silently keep both — it is to record the contradiction, keep both entries, lower both confidences, and route it to the owning domain agent and the next Knowledge Verification Session. Two agents holding contradictory beliefs is a fact about the system worth surfacing, not an inconsistency to quietly paper over.
+
+**Rejected — an LLM deciding DELETE autonomously in the write path.** The reconciliation is a model call on free-form text whose output can remove a memory from recall without any human or deterministic check. This is the line drawn in the `strix` entry — *model judgment is acceptable for curation, never for authorization* — and destruction sits on the far side of it. It also runs against §5 (prefer soft-delete everywhere) and, in aggregate, against §3a's first floor category. Ours never emits a destructive verb at all: the most severe outcome available to the reconciliation step is SUPERSEDE, which is additive.
+
+**Rejected — `delete_all(user_id=…, agent_id=…, run_id=…)` as an available operation.** A single call that clears every memory for a scope is precisely §3a's "bulk deleting or overwriting data," which is never automatable by any agent regardless of confidence or settings. It is not granted to any agent here, and the knowledge vault exposes no bulk-removal operation for one to call.
+
+---
+
+## https://github.com/rohitg00/agentmemory — reviewed 2026-08-17
+
+**What it does:** Apache-2.0 persistent memory server for coding agents (MCP-based, works across Claude Code, Cursor, Copilot CLI and others), built on the iii engine. Stores episodes, facts, lessons, and insights with confidence scores, and runs periodic background sweeps that age them.
+
+**This is the repository that closes truth decay.** Twenty reviews in, `agentmemory` is the first with a working, running implementation of confidence that decreases on its own and is restored by use. `src/functions/lessons.ts` registers `mem::lesson-decay-sweep` (and an insight equivalent), fired every 24 hours from `src/index.ts`, with `CONSOLIDATION_DECAY_DAYS` defaulting to 30. Five properties are adopted more or less wholesale:
+
+1. **Per-entry decay rate, not a global constant.** `decay = lesson.decayRate * weeksSinceBaseline` — each entry ages at its own speed. Our design had decay intervals set per *domain* (Engineering 90 days, Customer-Success 45, and so on); theirs is a strictly finer instrument and it is the better one. A single volatile fact inside a stable domain should age faster than its neighbours, and a domain-level interval cannot express that. `KNOWLEDGE-SYSTEM-DESIGN.md` §3.5 keeps the domain interval as the *default* an entry inherits, and every entry may carry its own override.
+2. **Use restores freshness — reinforcement resets the clock.** The decay baseline is `lastDecayedAt || lastReinforcedAt || createdAt`. We had asserted "active usage prevents decay" as a strategy bullet with no mechanism behind it; this is the mechanism, and it is three lines.
+3. **Confidence floors, never zeroes.** `Math.max(0.05, confidence - decay)`. Knowledge that has gone unverified for years becomes *untrusted*, never *absent* — which is the same instinct as our "nothing is deleted," applied to the confidence axis rather than the storage axis.
+4. **Decay produces a soft-delete, never a hard one.** The sweep tracks `softDeleted`, sets a `deleted` flag, and skips flagged entries on subsequent passes rather than removing them.
+5. **Every decay event is audited with before/after state.** `recordAudit(...)` writes `action`, `actor: "system"`, `reason: "decay-sweep"`, and both `before` and `after` `{confidence, deleted}`. This is the identical property arrived at independently in §3.6 for relocation — *a change made by the system to its own knowledge is an event, never a silent substitution* — and finding it here, applied to decay, is the strongest external confirmation any design decision in this repository has received.
+
+**Reshaped — decay lowers confidence; it never removes from recall.** Their sweep eventually soft-deletes an entry once confidence bottoms out, which hides it from retrieval. Ours stops at the confidence floor: the entry stays retrievable forever, marked `aging_unverified`, and a query that asks for it explicitly always gets it. The reasoning is §9's, not theirs — knowledge in this system is the record of *why we decided what we decided*, and a stale entry is often exactly what a future intake needs in order to understand a past decision. Confidence tells the reader how much to trust it; nothing needs to disappear for that signal to work.
+
+**Noted — the decay sweep runs on a timer inside the server process** (`setInterval` with `.unref()`, disabled by `LESSON_DECAY_ENABLED=false`). Fine for a single-process memory server; not a model for us, since a sweep that only runs while a process happens to be alive is exactly the "policy with no mechanism" failure `ECC` demonstrated. Ours is a scheduled job with a durable record of its last completed run, so a missed cycle is visible rather than silently skipped.
+
+---
+
+## https://github.com/TencentCloud/TencentDB-Agent-Memory — reviewed 2026-08-17
+
+**What it does:** MIT-licensed team memory infrastructure (MemoryCore + Memory Hub + Proxy + Panel). Extracts memory assets — chat memory, skills, wiki, code graph — from agent work, then routes them through a shared, human-reviewable team library so a new agent can load the team's accumulated context on day one.
+
+**Kept — the asset lifecycle as an enforced enum, which is the piece the other two lack.** `v3-meta-schemas.ts` types every asset's status as `z.enum(["draft", "candidate", "approved", "deprecated", "archived", "failed"])`. Knowledge does not go from extracted to authoritative in one step; it moves through named states, and the state is validated by schema rather than tracked by convention. Adopted directly, mapped onto our pipeline:
+
+```
+draft      → extracted by intake-worker, not yet curated
+candidate  → curated and catalogued, awaiting verification
+approved   → verified in a salon or by re-verification; authoritative
+deprecated → superseded by a newer entry; retained and readable
+archived   → historical; retained, readable, excluded from default recall
+failed     → intake could not complete; recorded so the gap is visible
+```
+
+**The property that made this worth adopting: there is no `deleted` state in the enum.** `archived` is terminal. A vocabulary that cannot express deletion cannot accidentally perform one — the same structural move as `ECC`'s "trusted is not a representable state," pointed at the opposite end of the lifecycle. This is strictly stronger than a rule saying we don't delete things.
+
+**Kept — human review as a first-class stage of the pipeline, not an afterthought.** Their Memory Hub is explicitly "a team memory panel controlled by humans," where assets are reviewed, shared, and equipped before circulating. This supplies something our design had left implicit: the `candidate → approved` transition is where Sparsh, or a verification salon, actually stands. Knowledge earning authority through review rather than through arrival is the whole point of §9, and this is the first reviewed repository to build the gate for it.
+
+**Kept — conflict recall at write time.** `conflictRecallTopK` in the gateway config retrieves the most similar existing memories when a new one is written, specifically so contradictions surface at write time rather than at read time. This is the retrieval half of mem0's reconciliation decision, and the two combine into the CONTRADICT-FLAG outcome described above — you cannot flag a contradiction you never looked for.
+
+**Kept — memory assets decoupled from the agent framework.** Assets are portable across frameworks and shared between agents and human team members. This matches §2's rule that nothing is inherited from a source: knowledge in our vault is stored as knowledge, never as a framework-specific artifact that only one runtime can read.
+
+**Noted — the deployment surface is large and the trust question is real but not ours today.** Three services, Docker-composed, with two sets of LLM credentials in `.env`, a proxy sitting between agents and providers, and cloud-object-storage paths throughout. We are adopting the *lifecycle model and the review gate*, which are design ideas, not the deployment. Per §2, none of its permission or credential configuration is inherited; per the `headroom` precedent, any inline proxy between our agents and a provider would need its outbound headers audited before it went anywhere near this system.
+
+---
+
+**What this cohort settles.** Combined with `Scrapling` §3.6, memory decay is now answered in both halves and by working precedent rather than by our own untested design: **pointer decay** by fingerprint-and-relocate, **truth decay** by per-entry confidence decay with reinforcement, an enforced lifecycle enum with no deletable state, conflict recall at write time, and a four-outcome reconciliation whose most severe verb is additive. What remains genuinely unproven is our own layer above all of it — the Knowledge Salons, where agents verify knowledge through dialogue rather than by timer. No reviewed repository does that, and no reviewed repository does anything like it.
