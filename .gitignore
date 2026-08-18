@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+
+# The live audit log grows on every tool call, including the git commands
+# used to check/commit/push this repo — version-controlling it created a
+# chase-your-tail loop where checking status was itself a logged (and thus
+# repo-dirtying) action. It stays on disk as a real, local, append-only log;
+# it's operational data, not source. See RUNBOOK.md §6.
+knowledge-vault/audit/tool-calls.jsonl
