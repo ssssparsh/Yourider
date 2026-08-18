@@ -47,6 +47,16 @@ echo "$FUNC_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
 echo "$FUNC_OUT" | grep -q 'ALL FUNCTIONAL ASSERTIONS PASSED' || {
   echo "    functional suite did not pass"; exit 1; }
 
+echo "==> consent suite"
+CONSENT_OUT=$(psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/consent_test.sql" 2>&1) \
+  || { echo "$CONSENT_OUT"; exit 1; }
+
+echo "$CONSENT_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
+  | grep -Ev '^(DO|CONTEXT)' || true
+
+echo "$CONSENT_OUT" | grep -q 'ALL CONSENT ASSERTIONS PASSED' || {
+  echo "    consent suite did not pass"; exit 1; }
+
 echo "==> creating unprivileged role for RLS suite"
 psql_q -d "$DB" <<SQL
 DROP ROLE IF EXISTS $APP_ROLE;

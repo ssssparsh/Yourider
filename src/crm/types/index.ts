@@ -9,4 +9,5 @@
 export * from './scalars.js';
 export * from './enums.js';
 export * from './entities.js';
+export * from './consent.js';
 export * from './verify.js';

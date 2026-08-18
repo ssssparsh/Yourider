@@ -11,6 +11,13 @@
  */
 
 import { DATABASE_ENUMS } from './enums.js';
+import { CONSENT_DATABASE_ENUMS } from './consent.js';
+
+/** Every registered enum across all modules. */
+const ALL_DATABASE_ENUMS = {
+  ...DATABASE_ENUMS,
+  ...CONSENT_DATABASE_ENUMS,
+} as const;
 
 /** Minimal query interface — satisfied by a `pg` Pool or Client. */
 export interface Queryable {
@@ -26,7 +33,7 @@ export interface DriftReport {
 }
 
 /**
- * Compares every enum in DATABASE_ENUMS against pg_enum.
+ * Compares every registered enum against pg_enum.
  * Returns one report per enum that disagrees; an empty array means no drift.
  */
 export async function findEnumDrift(db: Queryable): Promise<DriftReport[]> {
@@ -43,7 +50,7 @@ export async function findEnumDrift(db: Queryable): Promise<DriftReport[]> {
   const dbEnums = new Map(rows.map((r) => [r.enum_name, new Set(r.values)]));
   const reports: DriftReport[] = [];
 
-  for (const [enumName, tsEnum] of Object.entries(DATABASE_ENUMS)) {
+  for (const [enumName, tsEnum] of Object.entries(ALL_DATABASE_ENUMS)) {
     const tsValues = new Set<string>(Object.values(tsEnum));
     const dbValues = dbEnums.get(enumName);
 

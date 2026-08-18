@@ -124,6 +124,8 @@ BEGIN
     v_foreign int;
     v_checked int := 0;
   BEGIN
+    -- Every partitioned table, discovered rather than listed: a new one added
+    -- later is covered automatically instead of quietly escaping this check.
     FOR r IN
       SELECT c.relname AS child
         FROM pg_inherits i
@@ -131,7 +133,12 @@ BEGIN
         JOIN pg_class p ON p.oid = i.inhparent
         JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'public'
-         AND p.relname IN ('activities', 'audit_log')
+         AND p.relkind = 'p'
+         AND EXISTS (
+           SELECT 1 FROM pg_attribute a
+            WHERE a.attrelid = c.oid AND a.attname = 'organization_id'
+              AND NOT a.attisdropped
+         )
     LOOP
       EXECUTE format(
         'SELECT count(*) FROM %I WHERE organization_id <> $1', r.child
@@ -217,6 +224,81 @@ BEGIN
     RAISE NOTICE '  ok: audit_log delete affected no rows';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE '  ok: audit_log delete blocked (no DELETE policy)';
+  END;
+
+  -- =========================================================================
+  RAISE NOTICE '--- 7. consent ledger is tenant-isolated and append-only ---';
+  -- =========================================================================
+  PERFORM set_config('app.current_org_id', v_org_b::text, false);
+
+  SELECT count(*) INTO v_count FROM contact_channels;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s channels', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM consent_records;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s consent records', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM suppressions;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s suppressions', v_count;
+  END IF;
+
+  -- A suppression leaking across tenants would be a disclosure of who
+  -- complained about whom, so this is not merely a tidiness check.
+  SELECT count(*) INTO v_count FROM consent_state;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s consent state', v_count;
+  END IF;
+  RAISE NOTICE '  ok: channels, records, state and suppressions all isolated';
+
+  PERFORM set_config('app.current_org_id', v_org_a::text, false);
+
+  BEGIN
+    UPDATE consent_records SET state = 'granted'
+     WHERE organization_id = v_org_a;
+    IF EXISTS (
+      SELECT 1 FROM consent_records
+       WHERE organization_id = v_org_a AND state = 'granted'
+         AND source = 'unsubscribe_link'
+    ) THEN
+      RAISE EXCEPTION 'FAIL: a consent record was rewritten';
+    END IF;
+    RAISE NOTICE '  ok: consent_records update affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: consent_records update blocked (no UPDATE policy)';
+  END;
+
+  BEGIN
+    DELETE FROM consent_records WHERE organization_id = v_org_a;
+    IF NOT EXISTS (SELECT 1 FROM consent_records WHERE organization_id = v_org_a) THEN
+      RAISE EXCEPTION 'FAIL: consent history was deleted';
+    END IF;
+    RAISE NOTICE '  ok: consent_records delete affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: consent_records delete blocked (no DELETE policy)';
+  END;
+
+  -- consent_state is a derived cache: writable only by the ledger trigger, so
+  -- it cannot be edited into disagreeing with the history it summarises.
+  BEGIN
+    UPDATE consent_state SET state = 'granted' WHERE organization_id = v_org_a;
+    IF EXISTS (
+      SELECT 1 FROM consent_state cs
+       WHERE cs.organization_id = v_org_a
+         AND cs.state = 'granted'
+         AND NOT EXISTS (
+           SELECT 1 FROM consent_records r
+            WHERE r.id = cs.source_record_id AND r.state = 'granted'
+         )
+    ) THEN
+      RAISE EXCEPTION 'FAIL: consent_state was edited out of step with the ledger';
+    END IF;
+    RAISE NOTICE '  ok: consent_state update affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: consent_state is not directly writable';
   END;
 
   RAISE NOTICE '';

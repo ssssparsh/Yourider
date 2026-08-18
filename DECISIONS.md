@@ -228,3 +228,66 @@ existed because creating a partition and securing it were separate steps. A
 control that must be remembered is not a control. `0010` refuses to commit if
 any partition is unprotected, and the RLS suite asserts direct-access isolation
 across every partition.
+
+---
+
+## D13 — Consent is a ledger with a gate, not a column
+
+**Decided and built** (`0011_consent.sql`), superseding the placeholder in D11.
+
+**Model:** addressable `contact_channels`; tenant-defined `consent_purposes`;
+an append-only `consent_records` ledger carrying evidence and actor; a derived
+`consent_state` cache; address-level `suppressions`; partitioned
+`message_events`.
+
+**Precedence, deliberately in this order:**
+
+    suppression > legacy opt-out > transactional purpose > recorded consent
+
+Suppression outranks even an explicit grant. A hard-bounced address does not
+become deliverable because someone consented — continuing to write to it
+degrades sending reputation for every other contact in the tenant, so one
+person's consent cannot be allowed to damage everyone else's deliverability.
+
+**Why a ledger rather than a state column:** the question asked in a dispute is
+not "what is their consent" but "what was their consent on the day you sent
+that, and what is your evidence". A mutable column cannot answer it. The state
+table exists only so the send-time check is a primary-key lookup; it is a cache
+over the ledger and rebuildable from it.
+
+**Why the state cache guards on `effective_at`:** consent events arrive out of
+order — a verbal consent logged three days late must not resurrect permission
+withdrawn yesterday. Asserted by `consent_test.sql` §5.
+
+**Suppressions carry no foreign key to contacts.** Two consequences, both
+intended: an address can be suppressed before any contact exists for it, and
+deleting a contact does not forget that they asked never to be contacted.
+
+**Scope boundary:** Yourider owns consent truth and suppression. It does not
+build a sender — no SMTP pool, no campaign runner, no bounce mailbox scanner.
+Those belong to a dedicated service that mirrors delivery events back in.
+
+**Non-destructive transition:** the old `email_opt_out` / `sms_opt_out` booleans
+are retained and honoured by `can_send()` as a global withdrawal. Dropping them
+is a separate change requiring explicit approval, per `CLAUDE.md` §3.
+
+---
+
+## D14 — Generic triggers read columns through jsonb
+
+**Decided** (`0012_audit_without_soft_delete.sql`), after a bug.
+
+`app.record_audit()` read `OLD.deleted_at` directly. plpgsql resolves that
+against the actual row type at runtime, so attaching the trigger to any table
+without that column raised `record "old" has no field "deleted_at"`. Every
+audited table happened to have it until `suppressions`, which uses `released_at`
+because a suppression is released rather than soft-deleted.
+
+**Rule going forward:** a trigger attached to more than one table reads
+optional columns as `to_jsonb(NEW) ->> 'col'`, which yields NULL for a missing
+key instead of raising. Direct field access couples a generic trigger to one
+table's shape.
+
+**How it was found:** the consent suite exercised an UPDATE on `suppressions`.
+It would not have been found by review — the trigger was correct for every table
+that existed when it was written.

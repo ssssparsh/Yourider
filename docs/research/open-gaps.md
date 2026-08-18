@@ -5,50 +5,52 @@ Things the schema does not yet do, found by comparing it against mature CRMs
 that is written down is a decision, a gap that is only known in conversation is
 a landmine.
 
-Ordered by how expensive each becomes if deferred. Retrofit cost is the real
-sort key — several of these are cheap now and painful once there is data.
+Ordered by how expensive each becomes if deferred; retrofit cost is the real
+sort key. Resolved items stay in place with their reasoning, so the record
+shows what was done and why — several of these are cheap now and painful once there is data.
 
 ---
 
-## 1. Consent is a flag, and it needs to be a ledger
+## 1. ~~Consent is a flag~~ — RESOLVED in `0011_consent.sql`
 
-**Severity: high. Compliance-relevant. Cheapest to fix now.**
+**Was: high severity. Now built and tested.**
 
-`contacts.email_opt_out` and `contacts.sms_opt_out` are booleans. Comparing
-against listmonk's model (AGPL — concepts only), that is not sufficient for a
-system that actually sends anything:
+Replaced the two opt-out booleans with a real model:
 
-- **No purpose scoping.** GDPR and CASL consent attaches to a *purpose*.
-  Consenting to a service notification is not consenting to marketing. One
-  boolean cannot express that, and collapsing them means either over-sending
-  (a legal problem) or under-sending (a product problem).
-- **No confirmation state.** A boolean cannot distinguish *never asked* from
-  *asked and confirmed* from *unsubscribed*. Double opt-in is unrepresentable.
-- **No provenance.** No record of *when* consent was given, *how*, from what IP,
-  or by whom. A consent claim you cannot evidence is not a defence.
-- **No suppression independent of contacts.** You must be able to suppress an
-  address that has no contact row, and suppression must survive contact
-  deletion. Today, deleting a contact forgets they opted out — which is exactly
-  backwards.
-- **No bounce or complaint handling.** Hard bounces and spam complaints must
-  suppress automatically or sending reputation degrades until delivery fails.
+- `contact_channels` — addressable endpoints, one per email/phone, each with
+  its own verification state and consent history.
+- `consent_purposes` — tenant-defined, flagged transactional or requiring
+  double opt-in, optionally time-limited.
+- `consent_records` — **append-only ledger** of every grant, denial and
+  withdrawal, with evidence (ip, form url, consent text) and actor attribution.
+  No UPDATE or DELETE policy.
+- `consent_state` — derived cache so the send check is a primary-key lookup,
+  maintained by trigger and guarded against out-of-order arrival.
+- `suppressions` — address-level, carrying no FK to contacts, so a suppression
+  outlives the contact and can exist before one.
+- `message_events` — partitioned, idempotent on `(provider, provider_event_id)`.
 
-This matters more here than in a conventional CRM because `/src/agents` personas
-are expected to draft and send outbound. The approval gate governs *whether a
-send is attempted*; consent governs *whether it is lawful*. Those are different
-questions and only one of them currently has an answer.
+`app.can_send(channel, purpose)` is the gate, returning a reason as well as a
+verdict. Precedence, asserted by `consent_test.sql`:
 
-**Shape of the fix:** `contact_channels` (address, type, verified_at),
-`consent_records` (append-only: channel, purpose, state, source, ip, actor,
-timestamp), `suppressions` (org-scoped address + reason, outliving contacts),
-`message_events` (partitioned, provider event id for idempotent webhook
-ingestion). Consent then becomes a query, not a column read.
+    suppression > legacy opt-out > transactional purpose > recorded consent
 
-**Not in scope:** building a sender. Campaign delivery, SMTP pooling, and bounce
-ingestion belong in a dedicated service (an ESP API, or self-hosted listmonk run
-unmodified as a separate process — its AGPL network-copyleft makes *embedding*
-it risky, running it alongside is fine). Yourider owns the consent truth and
-mirrors delivery events back into `activities`.
+Suppression outranks even an explicit grant: a hard-bounced address does not
+become deliverable because someone consented, and writing to it damages sending
+reputation for every other contact in the tenant.
+
+`app.ingest_message_event()` applies bounce and complaint consequences in the
+same transaction, so an ESP webhook cannot record a complaint without the
+address becoming unsendable.
+
+**Deliberately not built:** the sender. No SMTP pool, no campaign runner, no
+bounce mailbox scanner. Those belong to a dedicated service which mirrors
+delivery events back in.
+
+**Follow-up requiring approval:** `contacts.email_opt_out` / `sms_opt_out` were
+retained rather than dropped, so this migration is non-destructive, and
+`can_send()` honours them as a global withdrawal during the transition.
+Dropping them is a separate, destructive change.
 
 ---
 

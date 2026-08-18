@@ -225,3 +225,83 @@ takesRole('viewer'); // ok
 
 // @ts-expect-error not a membership_role value
 takesRole('superuser');
+
+// ---------------------------------------------------------------------------
+// Consent layer
+// ---------------------------------------------------------------------------
+
+import type {
+  ContactChannelId,
+  ConsentPurposeId,
+  ConsentRecord,
+  SendVerdict,
+  SuppressionInsert,
+} from './consent.js';
+import {
+  ConsentSource,
+  ConsentStateKind,
+  MessageEventKind,
+  SuppressionReason,
+  isPermanentSuppression,
+} from './consent.js';
+
+declare const channelId: ContactChannelId;
+declare const purposeId: ConsentPurposeId;
+
+function takesChannelId(_id: ContactChannelId): void {}
+takesChannelId(channelId); // ok
+
+// @ts-expect-error a purpose id is not a channel id
+takesChannelId(purposeId);
+
+// @ts-expect-error an AccountId is not a ContactChannelId either
+takesChannelId(accountId);
+
+// A consent record is immutable: the ledger is append-only, so there is no
+// update path and the row type says so.
+declare const record: ConsentRecord;
+
+// @ts-expect-error consent_records has no UPDATE policy; the row is readonly
+record.state = ConsentStateKind.Granted;
+
+// @ts-expect-error evidence cannot be swapped out after the fact
+record.evidence = {};
+
+function takesConsentState(_s: ConsentStateKind): void {}
+takesConsentState('withdrawn'); // ok
+
+// @ts-expect-error not a consent_state_kind value
+takesConsentState('revoked');
+
+function takesSource(_s: ConsentSource): void {}
+takesSource(ConsentSource.DoubleOptin); // ok
+
+// @ts-expect-error not a consent_source value
+takesSource('email_reply');
+
+// A permanent suppression reason must not carry an expiry — the database
+// enforces it with a CHECK; this keeps the intent visible in the type layer.
+const permanentBlock: SuppressionInsert = {
+  channel_type: 'email',
+  address: 'bounced@example.test',
+  reason: SuppressionReason.HardBounce,
+  expires_at: null,
+};
+void permanentBlock;
+
+const permanent: boolean = isPermanentSuppression(SuppressionReason.Complaint);
+void permanent;
+
+// @ts-expect-error 'unsubscribed' is a message event, not a suppression reason
+const wrongReason: SuppressionReason = MessageEventKind.Unsubscribed;
+void wrongReason;
+
+// The gate returns a reason on allow as well as deny.
+declare const verdict: SendVerdict;
+const allowed: boolean = verdict.allowed;
+const why: string = verdict.reason;
+void allowed;
+void why;
+
+// @ts-expect-error the verdict is readonly; callers report it, they do not edit it
+verdict.allowed = true;
