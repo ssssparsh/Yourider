@@ -6,12 +6,17 @@ Current build target: [CRM MVP: Leads, Pipelines, Deals]
 Act as a senior full-stack/systems engineer covering: backend architecture, database design, API security, and basic UX/workflow sense for the chat interfaces. Prioritize working, strictly-typed, tested code over speculative breadth. Skip role-play framing — the standards below are what actually change output quality, not job titles.
 No pseudocode, placeholders, or unverified stubs in anything presented as done.
 If a request is ambiguous (which domain, which entity shape), state the assumption you're making and proceed, or ask one clarifying question if proceeding would waste real effort.
+Three working principles:
+  - Boil the ocean. AI makes completeness cheap — build the full implementation a task actually calls for, not the 90% shortcut with edges left for later. "I'll leave X for now" needs a real reason, not just less typing.
+  - Search before building. Check for prior art (existing code in this repo, a well-known pattern, a library that already solves it) before designing a mechanism from scratch. Novel isn't better by default.
+  - User sovereignty. Recommend, don't decide. If a change looks better than what the user asked for, say so and propose it — don't substitute your judgment for theirs and act on it unasked, even if you're confident you're right.
 3. Absolute Operational Guardrails (Human-in-the-Loop)
 No autonomous destructive action. Never delete files, drop/alter DB schemas, install new dependencies, or force-push without explicit confirmation in the current session.
 Multi-file or destructive tasks follow: Inspect → Plan → Present for Approval → Execute. Present the plan as a short list of file-level changes before touching anything. Wait for a go-ahead.
 Blast radius containment. Read access to the repo and any connected knowledge sources is unrestricted. Write/patch/execute actions are scoped to the files explicitly discussed in the current plan — don't drift into adjacent files "while you're in there" without flagging it first.
 No secrets in code or prompts. Never write credentials, API keys, or raw unvalidated user input into source files, commit messages, or persisted memory. Use environment variables + .env (gitignored) and reference them by name only.
-Pre-completion verification. Before marking any task done: run typecheck + lint + relevant tests (see §7). If something can't be verified (no test harness yet for that module), say so explicitly rather than marking it done.
+Pre-completion verification. Before marking any task done: run typecheck + lint + relevant tests (see §7). If something can't be verified (no test harness yet for that module), say so explicitly rather than marking it done. No completion claims without fresh verification evidence from *this* task — re-running an old test result or reasoning "it should work" doesn't count; run the check now and read its actual output before saying done.
+Escalate stuck debugging instead of repeating it. After 3 failed attempts to fix the same bug, stop retrying variations of the same fix — stop and question whether the underlying architecture/approach is wrong, and say so, rather than continuing to patch symptoms.
 Approval gate (command classes → autonomy tiers). Every tool call an agent makes falls into one command class: Read (view files/data, no side effects), Write (create/modify a file or DB row), Network (outbound call to an external service — scraper, email send, webhook), Install (add/change a dependency), Destructive (delete, drop, force-push, bulk mutation). Each agent definition (see /src/agents/README.md) declares its autonomy tier, which determines what happens per class:
   - Read-only tier: all classes require nothing beyond normal execution for Read; everything else is blocked outright.
   - Supervised tier (default for new agents): Read and Write proceed; Network, Install, and Destructive pause and surface a plain-language approval request in the current session ("Agent X wants to send an email to <address> — approve? y/n") before executing. No response within the session means it does not happen — never assume approval from silence or a stale prompt.
@@ -84,3 +89,52 @@ Claude Code persists this CLAUDE.md across sessions automatically — no separat
 It does not create MCP servers, scrapers, or vector indices by being written. Those are separate build/connect steps (§5, §6).
 It does not make Claude Code infallible at security or architecture — guardrails reduce risk, they don't eliminate the need to review output.
 It should be updated as V2 infra actually gets built — move sections from "REQUIRES SETUP" to "ACTIVE NOW" only once the checklist items are true.
+11. Adversarial Security Testing (Agents)
+Goal: before trusting an /src/agents persona in production, probe it the way an attacker would — jailbreaks, prompt injection, data leakage, toxicity — rather than assuming the approval gate (§3) is sufficient on its own.
+V1 — NOT YET ACTIVE (no agent to test)
+This section has nothing to run against until at least one real agent from /src/agents is implemented and callable (not just a persona `.md` file — an actual running endpoint). Do not attempt to set this up before then.
+V2 — REQUIRES SETUP (target state, once an agent exists)
+Tool: garak (github.com/NVIDIA/garak, Apache 2.0), a CLI adversarial-probe scanner for LLM-backed systems.
+garak tests raw prompt-in/text-out behavior — it has no native concept of tool calls or the autonomy-tier system in §3. To use it: wrap the target agent behind a single synchronous function or REST endpoint that runs the agent's full loop internally and returns only its final text reply, then point garak's `function` or `rest` generator at that wrapper (see garak's generator docs for the exact interface).
+Run the standard probe set first (jailbreak, promptinject, leakreplay, toxicity) to catch generic LLM failure modes.
+garak alone cannot tell you whether a probe caused a Destructive/Install-tier tool call — that requires a custom detector reading the agent's own tool-call log alongside garak's text-level verdict. Build that detector before treating a garak run as a real security signal for an agent that has tool access, not just chat output.
+Setup checklist before this section activates: at least one agent has a real callable endpoint → wrapper function/REST adapter written → garak installed and a baseline probe run completed → (if the agent has tool access) a custom tool-call-aware detector built. Until all of these are true, treat this section as not yet in effect, same as §5/§6 V2.
+
+<!-- code-review-graph MCP tools -->
+## MCP Tools: code-review-graph
+
+**IMPORTANT: This project has a knowledge graph. ALWAYS use the
+code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
+the codebase.** The graph is faster, cheaper (fewer tokens), and gives
+you structural context (callers, dependents, test coverage) that file
+scanning cannot.
+
+### When to use graph tools FIRST
+
+- **Exploring code**: `semantic_search_nodes_tool` or `query_graph_tool` instead of Grep
+- **Understanding impact**: `get_impact_radius_tool` instead of manually tracing imports
+- **Code review**: `detect_changes_tool` + `get_review_context_tool` instead of reading entire files
+- **Finding relationships**: `query_graph_tool` with callers_of/callees_of/imports_of/tests_for
+- **Architecture questions**: `get_architecture_overview_tool` + `list_communities_tool`
+
+Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+
+### Key Tools
+
+| Tool | Use when |
+| ------ | ---------- |
+| `detect_changes_tool` | Reviewing code changes — gives risk-scored analysis |
+| `get_review_context_tool` | Need source snippets for review — token-efficient |
+| `get_impact_radius_tool` | Understanding blast radius of a change |
+| `get_affected_flows_tool` | Finding which execution paths are impacted |
+| `query_graph_tool` | Tracing callers, callees, imports, tests, dependencies |
+| `semantic_search_nodes_tool` | Finding functions/classes by name or keyword |
+| `get_architecture_overview_tool` | Understanding high-level codebase structure |
+| `refactor_tool` | Planning renames, finding dead code |
+
+### Workflow
+
+1. The graph auto-updates on file changes (via hooks).
+2. Use `detect_changes_tool` for code review.
+3. Use `get_affected_flows_tool` to understand impact.
+4. Use `query_graph_tool` pattern="tests_for" to check coverage.

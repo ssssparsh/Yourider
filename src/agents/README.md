@@ -86,3 +86,14 @@ in a multi-step pipeline — belongs in `/src/agents/orchestrator/` once that
 logic is actually built. Until then, treat any multi-agent workflow as
 human-mediated: one agent's output is reviewed and manually handed to the
 next, rather than agents calling each other directly.
+
+When the orchestrator is built, use **manager-agent delegation**, not a
+message bus: a manager agent holds a `delegate_to(agent_name, task)` tool
+whose only argument is which registered agent (matched against that agent's
+`name` frontmatter) should run a synthesized sub-task, and it calls that
+agent's execution directly and waits for the result before continuing. This
+keeps handoff auditable — every delegation is a single tool call, which is
+exactly where the approval gate (CLAUDE.md §3) already hooks in: delegation
+to an agent whose task involves a Network/Install/Destructive action pauses
+for approval the same as any other tool call, no separate handoff-specific
+permission system needed.

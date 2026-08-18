@@ -55,7 +55,30 @@ components:
     # PRODUCT.md accessibility commitments)
     background: "{colors.agent-draft}"
     radius: "{radius.md}"
-```
+
+motion:
+  # cheapest tool first: prefer a plain CSS transition over an animation,
+  # an animation over WAAPI/JS, unless the interaction needs JS-driven
+  # sequencing. Never animate `all` — name the properties.
+  duration:
+    micro: "100ms"    # hover, focus ring, small state toggles
+    small: "150ms"    # button press, checkbox/switch
+    medium: "200ms"   # dropdown, tooltip, popover open/close
+    large: "300ms"    # modal, drawer, page-level transitions
+  easing:
+    standard: "cubic-bezier(0.4, 0, 0.2, 1)"   # most UI transitions
+    decelerate: "cubic-bezier(0, 0, 0.2, 1)"    # entering elements
+    accelerate: "cubic-bezier(0.4, 0, 1, 1)"    # exiting elements
+  reduced-motion:
+    # required, not optional — every animation must have a
+    # prefers-reduced-motion fallback that either disables motion or
+    # substitutes a cross-fade for spatial movement.
+    policy: "respect-os-setting"
+  never:
+    - "scale(0)"           # jarring pop-in; use opacity + small scale (0.95+) instead
+    - "ease-in for entering elements"   # feels sluggish; use decelerate curve
+    - "transition: all"    # animates unintended properties, hurts performance
+
 
 ## Notes for `/src/interfaces` implementers
 
@@ -66,3 +89,7 @@ components:
   CLAUDE.md's human-in-the-loop guardrails both require agent-originated,
   unconfirmed content to be visually unmistakable from confirmed
   human/system content. Don't remove or reuse this token for anything else.
+- The `agent-approval-prompt` component should use `motion.easing.decelerate`
+  on entry and `motion.easing.accelerate` on exit at `motion.duration.medium`
+  — it's interrupting the user's flow to ask for a decision, so it should
+  arrive with enough weight to notice, not slide in like routine chrome.
