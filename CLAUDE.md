@@ -12,14 +12,29 @@ Multi-file or destructive tasks follow: Inspect → Plan → Present for Approva
 Blast radius containment. Read access to the repo and any connected knowledge sources is unrestricted. Write/patch/execute actions are scoped to the files explicitly discussed in the current plan — don't drift into adjacent files "while you're in there" without flagging it first.
 No secrets in code or prompts. Never write credentials, API keys, or raw unvalidated user input into source files, commit messages, or persisted memory. Use environment variables + .env (gitignored) and reference them by name only.
 Pre-completion verification. Before marking any task done: run typecheck + lint + relevant tests (see §7). If something can't be verified (no test harness yet for that module), say so explicitly rather than marking it done.
+Approval gate (command classes → autonomy tiers). Every tool call an agent makes falls into one command class: Read (view files/data, no side effects), Write (create/modify a file or DB row), Network (outbound call to an external service — scraper, email send, webhook), Install (add/change a dependency), Destructive (delete, drop, force-push, bulk mutation). Each agent definition (see /src/agents/README.md) declares its autonomy tier, which determines what happens per class:
+  - Read-only tier: all classes require nothing beyond normal execution for Read; everything else is blocked outright.
+  - Supervised tier (default for new agents): Read and Write proceed; Network, Install, and Destructive pause and surface a plain-language approval request in the current session ("Agent X wants to send an email to <address> — approve? y/n") before executing. No response within the session means it does not happen — never assume approval from silence or a stale prompt.
+  - Full tier (opt-in, per agent, requires the human explicitly granting it in that agent's definition file): all classes proceed without pausing, except Destructive, which always pauses regardless of tier — no agent is ever fully autonomous for deletion/drop/force-push/bulk-mutation actions.
+  Background or scheduled runs (cron-triggered agents with no human present) may only run at Read-only or Supervised-with-nothing-pending tier; anything that would need a pause must fail loudly and log why, not silently skip or silently proceed.
 4. Directory Standards
 /src/agents        Orchestrator logic, prompt registries, agent-to-agent
-                    handoff, context assembly for multi-agent chat
+                    handoff, context assembly for multi-agent chat. Each
+                    agent is a self-contained Markdown file (frontmatter +
+                    system prompt) — the directory itself is the registry,
+                    no separate manifest to keep in sync. Format, autonomy
+                    tiers, and the shared security preamble are defined in
+                    /src/agents/README.md; copy /src/agents/AGENT_TEMPLATE.md
+                    to start a new one.
 /src/crm            Core domain models (Leads, Pipelines, Deals, Accounts,
                     custom entities, audit trails) — domain-agnostic core
                     lives here even when the active build is an ERP, etc.
 /src/interfaces     Chat UI framework, token streaming, dynamic
-                    schema-driven renderers
+                    schema-driven renderers. Read PRODUCT.md and DESIGN.md
+                    (repo root) before any UI work — they're the source of
+                    truth for brand/UX intent and design tokens, so
+                    decisions stay consistent across sessions instead of
+                    being reinvented per task.
 /src/api            REST/gRPC endpoints, auth middleware, input
                     sanitization, rate limiting
 /src/db             Schema + migrations, DB adapters
