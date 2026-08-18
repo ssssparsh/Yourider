@@ -110,6 +110,48 @@ BEGIN
   RAISE NOTICE '  ok: audit log is tenant-isolated';
 
   -- =========================================================================
+  RAISE NOTICE '--- 3b. partitions are isolated when queried DIRECTLY ---';
+  -- =========================================================================
+  -- Regression test for a real hole found during development: enabling RLS on
+  -- a partitioned parent does NOT protect its children, and a partition is an
+  -- ordinary table addressable by name. Reading through the parent looked
+  -- correctly isolated while `SELECT * FROM audit_log_202608` returned every
+  -- tenant's rows. Fixed in 0010_partition_rls.sql.
+  --
+  -- Still under tenant B's context here.
+  DECLARE
+    r         record;
+    v_foreign int;
+    v_checked int := 0;
+  BEGIN
+    FOR r IN
+      SELECT c.relname AS child
+        FROM pg_inherits i
+        JOIN pg_class c ON c.oid = i.inhrelid
+        JOIN pg_class p ON p.oid = i.inhparent
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public'
+         AND p.relname IN ('activities', 'audit_log')
+    LOOP
+      EXECUTE format(
+        'SELECT count(*) FROM %I WHERE organization_id <> $1', r.child
+      ) INTO v_foreign USING v_org_b;
+
+      IF v_foreign <> 0 THEN
+        RAISE EXCEPTION
+          'FAIL: direct query on partition % exposed % foreign rows',
+          r.child, v_foreign;
+      END IF;
+      v_checked := v_checked + 1;
+    END LOOP;
+
+    IF v_checked = 0 THEN
+      RAISE EXCEPTION 'FAIL: no partitions found to check — test is vacuous';
+    END IF;
+    RAISE NOTICE '  ok: % partitions leak nothing on direct access', v_checked;
+  END;
+
+  -- =========================================================================
   RAISE NOTICE '--- 4. cannot write into another tenant ---';
   -- =========================================================================
   PERFORM set_config('app.current_org_id', v_org_a::text, false);

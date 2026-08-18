@@ -165,6 +165,31 @@ millions of rows long before the customer table does. Partitioning means an old
 month detaches in constant time instead of a DELETE that rewrites the table, and
 date-scoped queries skip partitions outside their window entirely.
 
+### Partitions and RLS — a trap worth knowing
+
+Enabling row-level security on a partitioned **parent** does not protect its
+**children**. Postgres does not propagate `relrowsecurity` to partitions, and a
+partition is an ordinary table that any role holding SELECT on it can address
+by name:
+
+```sql
+SELECT * FROM audit_log_202608;   -- bypasses the parent's policies entirely
+```
+
+This was a live hole in this schema between `0009` and `0010`. Reading through
+`audit_log` looked correctly isolated while a direct read of the partition
+returned every tenant's rows.
+
+`app.ensure_month_partition()` now calls `app.secure_partition()` on every
+partition it touches, so partitions are born protected and pre-existing ones are
+repaired on the next maintenance run. `0010` also refuses to commit if any
+partition is left unprotected, and `rls_test.sql` asserts direct-access
+isolation across every partition.
+
+**If you add another partitioned table, route its partition creation through
+`ensure_month_partition` rather than issuing `CREATE TABLE ... PARTITION OF`
+by hand.** The manual path is exactly how this hole was introduced.
+
 **Partitions must exist before rows need them — an insert with no matching
 partition fails outright.** Run this monthly from cron:
 

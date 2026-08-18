@@ -1,0 +1,19 @@
+{
+  "name": "yourider",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Domain-agnostic CRM engine with sales and service pipelines",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "db:test": "./src/db/run_tests.sh",
+    "test": "npm run typecheck && npm run db:test"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
