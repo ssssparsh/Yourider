@@ -12,11 +12,13 @@
 
 import { DATABASE_ENUMS } from './enums.js';
 import { CONSENT_DATABASE_ENUMS } from './consent.js';
+import { ATTACHMENT_DATABASE_ENUMS } from './attachments.js';
 
 /** Every registered enum across all modules. */
 const ALL_DATABASE_ENUMS = {
   ...DATABASE_ENUMS,
   ...CONSENT_DATABASE_ENUMS,
+  ...ATTACHMENT_DATABASE_ENUMS,
 } as const;
 
 /** Minimal query interface — satisfied by a `pg` Pool or Client. */

@@ -291,3 +291,90 @@ table's shape.
 **How it was found:** the consent suite exercised an UPDATE on `suppressions`.
 It would not have been found by review — the trigger was correct for every table
 that existed when it was written.
+
+---
+
+## D15 — Files are content-addressed blobs; attachments are links to them
+
+**Decided and built** (`0013_attachments.sql`).
+
+**Two tables.** `files` is a stored blob, `attachments` is a link from a blob to
+a record. One contract serves a deal, an account and a service job without three
+copies of the bytes.
+
+**Over:** a single polymorphic `attachments` table carrying the storage details
+inline. That shape re-uploads identical content and cannot answer "where else
+does this document appear" — the first question asked when a document turns out
+to be wrong.
+
+**Bytes live in object storage.** A `bytea` column puts file content into WAL,
+into every base backup, and onto every replica. Postgres holds the metadata and
+the authorisation decision; the object store holds the bytes.
+
+**Storage keys are generated columns**, derived as
+`organization_id || '/' || id`. A client-chosen key is a tenant-isolation hole
+that no policy on this table can close, because the breach happens in the object
+store rather than in Postgres. Deriving the key from the row makes it
+unrepresentable rather than merely forbidden — the same move as making
+`organization_id` immutable (D2) instead of trusting callers not to change it.
+
+**Deduplication is scoped to the tenant**, not global. Sharing blobs across
+tenants would halve storage for common documents and is a side channel: an
+instant upload tells tenant A that tenant B holds that exact content. Storage is
+cheaper than that inference.
+
+**Upload is a two-phase state machine.** The row exists before the bytes,
+because the storage key must be known to issue a presigned URL. The alternatives
+are trusting the client's report that the upload finished, or writing the row
+afterwards and having no way to find objects whose row write failed.
+
+**The download gate fails closed.** An unscanned file is refused. `skipped`
+exists so a trusted internal path states that explicitly instead of reaching the
+same outcome by omission. A checksum that ever came back infected is refused on
+re-upload: content is the identity, so renaming a blocked file changes nothing.
+
+**Attachment targets are validated, activity targets are not.** Both are
+polymorphic `(entity_type, entity_id)` pairs with no FK. Attachments pay an
+index lookup per write because they are low-volume, long-lived, and a dangling
+one surfaces when someone opens a deal that no longer exists to find the
+contract. `activities` would pay that lookup on every interaction ever recorded,
+which is the wrong trade at that volume. The asymmetry is deliberate, not an
+oversight in one of the two.
+
+**The reference counter is recomputed, not incremented.** An increment/decrement
+pair must be correct for insert, hard delete, soft delete, restore, and a
+re-pointed `file_id`; one missed path either deletes bytes still in use or leaks
+them forever. A recomputed count over an indexed lookup cannot drift.
+
+**The sweeper reports, it never deletes.** `app.sweepable_files()` is read-only.
+Deleting bytes is a Destructive-class action under `CLAUDE.md` §3, and a
+function that could do it from inside a query is a function that will eventually
+be called by something that did not mean it.
+
+**Revisit if:** attachment volume per blob grows enough that recomputing the
+count on every attach becomes hot — the fix is an incremental counter behind the
+same trigger, with a periodic reconciliation job, not a hand-maintained one.
+
+---
+
+## D16 — Audit triggers may be column-scoped
+
+**Decided** (`0013_attachments.sql`), as a general convention.
+
+`files` carries `attachment_count`, maintained by trigger. Auditing it with the
+standard `app.attach_audit()` would write an audit row every time a document was
+attached or detached, recording that a derived number moved — noise that buries
+the signal (a scan verdict, a deletion, a renamed file).
+
+The trigger is therefore declared with an explicit column list:
+
+    AFTER INSERT OR UPDATE OF upload_state, scan_status, deleted_at, ... OR DELETE
+
+**Rule going forward:** a table with a trigger-maintained derived column gets a
+column-scoped audit trigger naming the columns that carry intent. `attach_audit`
+remains the default for tables without one.
+
+**What this is not:** a licence to exclude columns because they are noisy in
+general. The test is whether a human wrote the value. Derived bookkeeping is
+excluded; a field someone edited is never excluded.
+

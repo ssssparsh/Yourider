@@ -57,6 +57,16 @@ echo "$CONSENT_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
 echo "$CONSENT_OUT" | grep -q 'ALL CONSENT ASSERTIONS PASSED' || {
   echo "    consent suite did not pass"; exit 1; }
 
+echo "==> attachments suite"
+ATTACH_OUT=$(psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/attachments_test.sql" 2>&1) \
+  || { echo "$ATTACH_OUT"; exit 1; }
+
+echo "$ATTACH_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
+  | grep -Ev '^(DO|CONTEXT)' || true
+
+echo "$ATTACH_OUT" | grep -q 'ALL ATTACHMENT ASSERTIONS PASSED' || {
+  echo "    attachments suite did not pass"; exit 1; }
+
 echo "==> creating unprivileged role for RLS suite"
 psql_q -d "$DB" <<SQL
 DROP ROLE IF EXISTS $APP_ROLE;

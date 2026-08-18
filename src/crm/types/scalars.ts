@@ -55,6 +55,25 @@ export type IntervalString = string & { readonly __interval: true };
 export type IpAddress = string & { readonly __inet: true };
 
 /**
+ * PostgreSQL `bytea`.
+ *
+ * node-postgres returns a Node `Buffer`, which is a `Uint8Array` subclass —
+ * typed as `Uint8Array` here so these types do not require @types/node.
+ *
+ * Not branded: a brand would break assignability from the `Buffer` the driver
+ * actually hands back, which is the one value this type exists to describe.
+ */
+export type Bytea = Uint8Array;
+
+/**
+ * A SHA-256 digest as raw bytes — exactly 32 of them, enforced by a CHECK
+ * constraint rather than by the type. Stored raw rather than as 64 hex
+ * characters: half the storage, and a malformed digest becomes a constraint
+ * violation instead of a silent mismatch that never matches anything.
+ */
+export type Sha256Digest = Bytea;
+
+/**
  * A JSONB column. Deliberately `unknown`-valued rather than `any`: JSONB
  * contents are not verified by the compiler, so consumers must narrow before
  * use. Custom-field values additionally get runtime validation from the

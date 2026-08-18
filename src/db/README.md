@@ -157,6 +157,111 @@ Set `app.audit_reason` before a write to record *why*:
 SELECT set_config('app.audit_reason', 'discount approved by ops', false);
 ```
 
+## Files and attachments
+
+Two tables, not one. `files` is a stored blob; `attachments` is a link from that
+blob to a record. One signed contract can hang off a deal, an account and a
+service job without three copies of the bytes existing, and "where else does
+this document appear" — the first question asked when a document turns out to
+be wrong — stays answerable.
+
+**The bytes live in object storage, not Postgres.** A `bytea` column puts file
+content into WAL, into every base backup, and onto every replica, turning a
+20 MB upload into 20 MB of replication traffic. These tables are the index and
+the authorisation decision; S3 (or MinIO, or Supabase Storage) holds the bytes.
+
+### Storage keys are generated, never supplied
+
+```sql
+storage_key text GENERATED ALWAYS AS (organization_id::text || '/' || id::text) STORED
+```
+
+A client-chosen key is a tenant-isolation hole that no policy on this table can
+close: tenant A asks for `org-b/invoices/secret.pdf` and either reads or
+overwrites tenant B's object, and the breach happens in the object store where
+Postgres has no say. Deriving the key from the row makes it unrepresentable.
+
+### Uploading is two-phase
+
+```sql
+-- 1. reserve a row and get somewhere to put the bytes
+SELECT * FROM app.begin_file_upload(
+  :org, 'yourider-files', 'contract.pdf', 'application/pdf', :sha256, :user);
+
+-- 2. after the client PUTs to the presigned URL
+SELECT app.complete_file_upload(:file_id, :byte_size, :sha256);
+```
+
+The row exists before the bytes do, because the storage key has to be known in
+order to issue a presigned URL. Without the state machine the only options are
+trusting the client's word that the upload succeeded, or writing the row
+afterwards and having no way to find objects whose row write failed.
+
+Pass the checksum to `begin_file_upload` when the client hashed the file first:
+identical content already held by that organization is returned immediately with
+`already_stored = true` and no second upload happens. Deduplication is scoped to
+the tenant on purpose — sharing blobs across tenants is a side channel, because
+an instant upload tells tenant A that tenant B holds that exact document.
+
+`complete_file_upload` returns the id of the **canonical** blob, which is not
+always the id passed in: two uploads of identical content can be in flight at
+once, and the loser is marked `superseded_by` rather than left as a second copy
+nothing would collect. Use the returned id from that point on.
+
+### Downloads go through the gate
+
+```sql
+SELECT * FROM app.can_download(:file_id);   -- (allowed, reason)
+```
+
+Shaped like `app.can_send`: a verdict plus a reason, because a caller that only
+gets `false` has nothing to show the user and nothing to log. It **fails
+closed** — an unscanned file is refused, since a file from an unknown source is
+exactly the one worth withholding. `scan_status = 'skipped'` exists so a trusted
+internal path can say so explicitly rather than arriving there by omission.
+
+`app.record_scan_result()` records the verdict. A checksum that ever came back
+`infected` is refused on re-upload: content is the identity, so renaming a
+blocked file changes nothing.
+
+This answers content safety only. Tenant isolation comes from RLS; whether
+*this* user may see *this* record is the caller's question.
+
+### Attachments validate their target
+
+`entity_type` + `entity_id` is polymorphic and carries no foreign key, but
+unlike `activities` it is checked on write by `app.assert_entity_in_org()`.
+Attachments are low-volume and long-lived, and a dangling one surfaces at the
+worst possible moment — someone opens a deal that no longer exists to find the
+contract. `activities` skips the check because it is partitioned and
+high-volume, and would pay that lookup on every interaction ever recorded.
+
+`app.attach_file()` is the way in: it resolves the organization from the file,
+records agent attribution, and writes the `file_attached` timeline entry.
+`app.detach_file()` soft-deletes the link, because "this contract used to hang
+off this deal" is a question that gets asked.
+
+### Cleaning up
+
+```sql
+SELECT * FROM app.sweepable_files(interval '24 hours');
+```
+
+Reports blobs whose bytes can be removed, with a reason. It never deletes
+anything — deletion is a Destructive-class action (`CLAUDE.md` §3) that belongs
+to the sweeper. Act on specific reasons: `never_attached` is a policy choice
+rather than a fact. The grace period is the safety mechanism; without it the
+sweeper deletes bytes out from under an upload still in flight.
+
+`files.attachment_count` is maintained by trigger and **recomputed** rather than
+incremented, so it cannot drift: an increment/decrement pair has to be right for
+insert, hard delete, soft delete, restore, and a re-pointed `file_id`, and one
+missed path either deletes bytes still in use or leaks them forever.
+
+Its audit trigger is column-scoped (`AFTER UPDATE OF upload_state, scan_status,
+…`) so that counter churn does not fill the audit trail with rows recording that
+a derived number moved.
+
 ## Partitioning and maintenance
 
 `activities` and `audit_log` are RANGE-partitioned by month. These two grow with
@@ -250,5 +355,13 @@ live outside this directory.
   `SELECT app.attach_audit('<table>')`.
 - Add an `assert_same_org` trigger for every FK pointing at another tenant
   table.
+- Polymorphic `(entity_type, entity_id)` reference on a low-volume table:
+  validate it on write with `app.assert_entity_in_org()`. Add the branch to
+  `app.entity_table()` when introducing a `crm_entity` value — it returns NULL
+  for an unmapped one, and callers must treat that as an error rather than
+  skipping validation.
+- Auditing a table that carries a trigger-maintained derived column: attach the
+  audit trigger with an explicit `UPDATE OF <columns>` list so the trail records
+  intent rather than bookkeeping.
 - Adding a column to a hot table: nullable or with a default, never a rewrite
   that takes an ACCESS EXCLUSIVE lock for minutes on a large table.

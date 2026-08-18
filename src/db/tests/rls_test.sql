@@ -301,6 +301,47 @@ BEGIN
     RAISE NOTICE '  ok: consent_state is not directly writable';
   END;
 
+  -- =========================================================================
+  RAISE NOTICE '--- 8. files and attachments are tenant-isolated ---';
+  -- =========================================================================
+  PERFORM set_config('app.current_org_id', v_org_b::text, false);
+
+  SELECT count(*) INTO v_count FROM files WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s files', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM attachments WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s attachments', v_count;
+  END IF;
+
+  -- A storage key is a direct reference into the object store. Leaking one is
+  -- worse than leaking a row: the object can then be fetched without going
+  -- through the database at all, so no policy downstream can intervene.
+  SELECT count(*) INTO v_count FROM files
+   WHERE storage_key LIKE v_org_a::text || '/%';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: % of tenant A''s storage keys visible to tenant B', v_count;
+  END IF;
+  RAISE NOTICE '  ok: files, attachments and storage keys all isolated';
+
+  -- Writing an attachment into another tenant must fail at the policy, before
+  -- the cross-tenant trigger ever runs.
+  BEGIN
+    INSERT INTO attachments (organization_id, file_id, entity_type, entity_id)
+      SELECT v_org_a, f.id, 'deal', gen_random_uuid()
+        FROM files f WHERE f.organization_id = v_org_b LIMIT 1;
+    RAISE EXCEPTION 'FAIL: attachment written into a foreign tenant';
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      RAISE NOTICE '  ok: cross-tenant attachment insert blocked by policy';
+    WHEN foreign_key_violation THEN
+      RAISE NOTICE '  ok: cross-tenant attachment insert blocked by guard';
+  END;
+
+  PERFORM set_config('app.current_org_id', v_org_a::text, false);
+
   RAISE NOTICE '';
   RAISE NOTICE '=== ALL RLS ASSERTIONS PASSED (as %) ===', current_user;
 END;

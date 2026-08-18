@@ -54,14 +54,40 @@ Dropping them is a separate, destructive change.
 
 ---
 
-## 2. No attachments
+## 2. ~~No attachments~~ — RESOLVED in `0013_attachments.sql`
 
-**Severity: high. Trivial now, awkward later.**
+**Was: high severity. Now built and tested.**
 
-There is nowhere to put a file. Every CRM needs one: a contract PDF on a deal, a
-site photo on a service job, an imported CSV. Needs a polymorphic table with
-storage key, uploader, size, mime type, and a checksum — plus a decision about
-where bytes live (object storage, not Postgres).
+Two tables rather than the one this entry originally called for:
+
+- `files` — one row per stored blob, carrying bucket, generated storage key,
+  size, SHA-256, upload state, scan verdict, and a trigger-maintained reference
+  count. Content-addressed and deduplicated **within a tenant**.
+- `attachments` — the polymorphic link to a record, with a role
+  (`attachment` / `avatar` / `logo` / `import_source` / `generated`) and a
+  partial unique index making the singular roles singular.
+
+Bytes live in object storage. `storage_key` is a generated column
+(`organization_id || '/' || id`) so a client cannot choose one — a caller-chosen
+key is a cross-tenant read of the object store that no policy in Postgres can
+prevent.
+
+Upload is two-phase (`app.begin_file_upload` → `app.complete_file_upload`), so a
+reserved key exists before the bytes and an abandoned upload is findable.
+`app.can_download()` is the gate, failing closed on an unscanned file and
+refusing any checksum previously found infected. `app.sweepable_files()` reports
+collectable blobs with a reason and never deletes.
+
+Attachment targets are validated on write by `app.assert_entity_in_org()`;
+`activities` deliberately still are not, for volume reasons. See DECISIONS.md
+D15 and D16.
+
+**Follow-up, not built:** the other mutating helpers (`app.move_to_stage`,
+`app.convert_lead`, `app.stamp_assignment`) write no timeline rows at all.
+`app.log_activity()` now exists as the shared emitter and `attach_file` uses it;
+routing the others through it would make the timeline consistent. Left alone
+because changing what those functions record is a behaviour change to working
+code, which is the user's call rather than a side effect of this migration.
 
 ---
 
@@ -155,6 +181,11 @@ something sensitive in a custom field.
 - **Import batches** — a bulk import cannot be traced or rolled back.
 - **FX rate provenance** — `deals.fx_rate` records a rate but not where it came
   from or when, so historical conversions are unauditable.
+- **Storage quotas** — `files` records `byte_size` per blob but nothing caps a
+  tenant's total. A per-organization limit checked on `complete_file_upload` is
+  the obvious shape; a running total on `organizations` would serialise every
+  upload behind one row, so the counter belongs in its own table or a periodic
+  rollup.
 - **Tasks and notes attach to exactly one record** via `entity_type` +
   `entity_id`. twenty uses join tables to allow several targets.
 - **Denormalised label on timeline rows** — twenty caches the linked record's
