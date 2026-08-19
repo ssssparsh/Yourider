@@ -157,6 +157,90 @@ Set `app.audit_reason` before a write to record *why*:
 SELECT set_config('app.audit_reason', 'discount approved by ops', false);
 ```
 
+## Pricing, line items and margin
+
+A deal carried a single scalar `amount`. That draws a pipeline and answers
+nothing else — not what was sold, at what discount, or at what margin.
+`service_jobs` has had line items since `0006`, so delivery could be itemised
+while the sale could not.
+
+### The catalogue has a cost basis
+
+`services.unit_cost` was added rather than a second `products` table. A separate
+catalogue makes "what did we sell last quarter" a UNION across two tables that
+drift apart, and every report has to remember both.
+
+**`unit_cost = NULL` means the cost is unknown, not zero.** That distinction is
+load-bearing: `app.deal_totals()` reports `cost_known`, and returns a NULL
+margin rather than one computed against only the lines that happen to carry a
+cost — which would overstate it, and always in the flattering direction.
+
+### Price books
+
+One catalogue entry, several prices: per currency, per segment, per volume tier,
+with effective dating. Encoding any of those as a column on `services` means a
+migration per pricing dimension.
+
+```sql
+SELECT * FROM app.resolve_price(:service_id, :price_book_id, :quantity);
+-- (unit_price, unit_cost, price_book_id, price_book_entry_id, source)
+```
+
+- **Tiers are declared by their floor.** An entry applies from `min_quantity`
+  upward and the highest applicable one wins, so there are no ranges to leave
+  gaps between.
+- **Effective dating schedules a change without deleting what it replaces**, so
+  a quote issued last week can still be explained. Ties on the tier floor break
+  toward the later `valid_from`.
+- **The default book is per currency, not per organization.** A tenant selling
+  in three currencies needs three defaults.
+- **A book named explicitly but not in effect raises**, rather than falling back
+  to the catalogue. Silent fallback prices the deal from list while the caller
+  believes a negotiated book applied.
+
+### Line items snapshot the sale
+
+`app.add_deal_line_item()` copies price, cost, description and SKU onto the row
+and records which book the price came from. Reading through to the catalogue
+instead would let a repricing silently rewrite what a closed deal was sold for —
+the same reasoning as `deals.probability` snapshotting its stage's probability.
+
+The derived amounts are generated columns, computed in this order:
+
+    gross    = round(quantity × unit_price, 4)
+    discount = round(percent × gross, or the flat amount, 4)
+    net      = gross − discount
+    tax      = round(net × tax_rate, 4)
+    total    = net + tax
+
+Two properties this ordering buys, both asserted by `pricing_test.sql`:
+
+- **Tax applies to the discounted net, never the gross.** Otherwise the customer
+  is charged tax on a discount they received.
+- **`net + tax = total` exactly.** Gross and discount are each rounded before
+  subtraction, so net is exact at 4dp and tax is computed once from it.
+  Rounding each part independently is how an invoice ends up not adding up.
+
+Margin is against **net revenue, not the tax-inclusive total** — tax collected
+on behalf of a government was never revenue.
+
+### The deal amount follows its lines
+
+Once a deal has line items, `deals.amount` is maintained by trigger in the same
+transaction as the line change, and a hand edit is **refused**:
+
+```
+ERROR:  deal ... has line items, so its amount is derived from them
+```
+
+Loud rather than silent — the rollup would overwrite the edit on the next line
+change anyway, and a number that quietly reverts is worse than one that is
+refused. A deal with **no** line items keeps the manual `amount` it has always
+had, so this is additive for existing rows.
+
+`app.deal_totals()` reports everything else on demand. A stored subtotal that
+nothing forces to agree with its lines is a second source of truth.
+
 ## Files and attachments
 
 Two tables, not one. `files` is a stored blob; `attachments` is a link from that

@@ -15,6 +15,7 @@ import type {
   AccountInsert,
   ContactId,
   Deal,
+  DealId,
   DealInsert,
   LeadInsert,
   ServiceJobItemInsert,
@@ -34,6 +35,15 @@ import {
   FileUploadState,
   isSingletonRole,
 } from './attachments.js';
+import type {
+  AddDealLineItemArgs,
+  DealLineItem,
+  DealLineItemId,
+  DealTotals,
+  PriceBookId,
+  PriceQuote,
+} from './pricing.js';
+import { PriceSource } from './pricing.js';
 import { MembershipRole, StageKind, isTerminalStage } from './enums.js';
 import type { Numeric } from './scalars.js';
 
@@ -391,3 +401,68 @@ const badTarget: AttachFileArgs = {
   entity_id: '00000000-0000-0000-0000-000000000000',
 };
 void badTarget;
+
+// ---------------------------------------------------------------------------
+// Pricing, line items and margin
+// ---------------------------------------------------------------------------
+
+declare const priceBookId: PriceBookId;
+declare const lineItemId: DealLineItemId;
+
+function takesPriceBookId(_id: PriceBookId): void {}
+takesPriceBookId(priceBookId); // ok
+
+// @ts-expect-error a line item id is not a price book id
+takesPriceBookId(lineItemId);
+
+declare const line: DealLineItem;
+
+// Every money column is a string. Treating one as a number is how a total ends
+// up a cent out, which is the entire reason `numeric` was chosen.
+// @ts-expect-error numeric arrives as a string, not a number
+const lineTotal: number = line.line_total;
+void lineTotal;
+
+// @ts-expect-error generated columns are computed by the database, never assigned
+line.line_total = line.net_amount;
+
+// Cost is nullable and the null is meaningful: unknown, not zero.
+const cost: Numeric | null = line.cost_total;
+void cost;
+
+// @ts-expect-error cost_total may be null — unknown cost is not zero cost
+const costNotNull: Numeric = line.cost_total;
+void costNotNull;
+
+declare const totals: DealTotals;
+
+// margin_total is nullable for the same reason, and cost_known is the flag that
+// says which case you are in.
+if (totals.cost_known) {
+  const margin: Numeric | null = totals.margin_total;
+  void margin;
+}
+
+// @ts-expect-error margin may be null when no cost was recorded
+const margin: Numeric = totals.margin_total;
+void margin;
+
+declare const quote: PriceQuote;
+function takesPriceSource(_s: PriceSource): void {}
+takesPriceSource(quote.source); // ok
+takesPriceSource(PriceSource.Catalogue); // ok
+
+// @ts-expect-error 'list' is not a price source
+takesPriceSource('list');
+
+// A one-off line is allowed, but the database requires description and price
+// together — expressed here as both being optional at the type level and
+// checked at runtime, because "either both or neither" is not a shape the
+// compiler can enforce without splitting the type in two.
+declare const dealId: DealId;
+const oneOff: AddDealLineItemArgs = {
+  deal_id: dealId,
+  description: 'Custom onboarding',
+};
+void oneOff;
+

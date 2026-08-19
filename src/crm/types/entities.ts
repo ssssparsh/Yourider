@@ -313,6 +313,20 @@ export interface Service extends TenantScoped, Timestamped {
   readonly recurrence: IntervalString | null;
   readonly requires_assignment: boolean;
   readonly is_active: boolean;
+
+  /**
+   * Cost basis, added in 0014. NULL means the cost is *unknown*, which is not
+   * the same as zero — a margin computed against a missing cost overstates it,
+   * and always in the flattering direction. `app.deal_totals()` reports
+   * `cost_known` for exactly this reason.
+   */
+  readonly unit_cost: Numeric | null;
+  /** NULL means the cost is denominated in `currency`. */
+  readonly cost_currency: CurrencyCode | null;
+  /** Physical goods need stock semantics that services do not. */
+  readonly is_stockable: boolean;
+  readonly sku: string | null;
+
   readonly custom_fields: JsonObject;
   readonly tags: readonly string[];
   readonly created_by: UserId | null;

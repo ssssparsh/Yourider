@@ -67,6 +67,16 @@ echo "$ATTACH_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
 echo "$ATTACH_OUT" | grep -q 'ALL ATTACHMENT ASSERTIONS PASSED' || {
   echo "    attachments suite did not pass"; exit 1; }
 
+echo "==> pricing suite"
+PRICE_OUT=$(psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/pricing_test.sql" 2>&1) \
+  || { echo "$PRICE_OUT"; exit 1; }
+
+echo "$PRICE_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
+  | grep -Ev '^(DO|CONTEXT)' || true
+
+echo "$PRICE_OUT" | grep -q 'ALL PRICING ASSERTIONS PASSED' || {
+  echo "    pricing suite did not pass"; exit 1; }
+
 echo "==> creating unprivileged role for RLS suite"
 psql_q -d "$DB" <<SQL
 DROP ROLE IF EXISTS $APP_ROLE;

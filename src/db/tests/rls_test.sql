@@ -340,6 +340,29 @@ BEGIN
       RAISE NOTICE '  ok: cross-tenant attachment insert blocked by guard';
   END;
 
+  -- =========================================================================
+  RAISE NOTICE '--- 9. pricing is tenant-isolated ---';
+  -- =========================================================================
+  -- Price books are commercially sensitive in a way most tables are not: a
+  -- competitor's discount structure is exactly what a leak would be worth.
+  SELECT count(*) INTO v_count FROM price_books WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s price books', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM price_book_entries
+   WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s prices', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM deal_line_items
+   WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s line items', v_count;
+  END IF;
+  RAISE NOTICE '  ok: price books, prices and line items all isolated';
+
   PERFORM set_config('app.current_org_id', v_org_a::text, false);
 
   RAISE NOTICE '';

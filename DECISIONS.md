@@ -378,3 +378,65 @@ remains the default for tables without one.
 general. The test is whether a human wrote the value. Derived bookkeeping is
 excluded; a field someone edited is never excluded.
 
+---
+
+## D17 — One catalogue with a cost basis, priced by books
+
+**Decided and built** (`0014_pricing.sql`).
+
+**Cost added to `services`, not a new `products` table.** A second catalogue
+makes "what did we sell" a UNION across two tables that drift apart, and every
+report has to remember both. `services` was already the thing a tenant sells; it
+was missing the cost side.
+
+**Price books over price columns.** The same item sells at different prices per
+currency, per segment, and per volume tier. Each of those as a column on
+`services` is a migration per pricing dimension. Tiers are declared by their
+floor and the highest applicable wins, so no range can be left with a gap.
+
+**Effective dating rather than overwriting.** A superseded price stays, with an
+end date. A quote issued last week has to remain explicable, and a price
+overwritten in place cannot be.
+
+**An unusable book named explicitly raises rather than falling back.** Silent
+fallback prices the deal from the catalogue while the caller believes a
+negotiated book is in effect — a wrong number nobody has a reason to question.
+
+**NULL cost means unknown, not zero.** `deal_totals()` reports `cost_known` and
+returns NULL margin rather than the margin of only the lines carrying a cost.
+That figure would always be wrong in the flattering direction, which is the
+worst kind of wrong for a number people make decisions on.
+
+**Revisit if:** a tenant needs per-account contract pricing rather than
+per-segment books — the shape is an `account_id` on `price_books`, and the
+resolver gains one more precedence step.
+
+---
+
+## D18 — Deal amount is derived once a deal is itemised
+
+**Decided and built** (`0014_pricing.sql`).
+
+`deals.amount` is maintained by trigger from the line items, in the same
+transaction as the line change. A hand edit to an itemised deal is **refused**,
+not silently overwritten.
+
+**Why derived at all:** two numbers that can disagree means the one a report
+happens to read decides whether the quarter made target.
+
+**Why refused rather than overwritten:** the rollup would overwrite the edit on
+the next line change regardless. A number that quietly reverts is worse than one
+that is rejected, because the person who typed it never learns it did not take.
+
+**Why not fully generated:** a deal with no line items keeps the manual `amount`
+it has always had. Making the column generated would have been a destructive
+change to existing rows and would have removed a workflow — an early-stage deal
+with an estimated value and nothing itemised yet — that is legitimate.
+
+**Accepted cost:** `deals.amount` is manual or derived depending on state, which
+is a mode. The mode is discoverable (does the deal have line items) and the
+error message says which one you are in, but it is a mode nonetheless.
+
+**Revisit if:** the manual path stops being used in practice. Then the column
+becomes derived unconditionally and the mode disappears.
+

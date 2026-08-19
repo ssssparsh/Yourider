@@ -91,15 +91,32 @@ code, which is the user's call rather than a side effect of this migration.
 
 ---
 
-## 3. Deals have an amount but no line items
+## 3. ~~Deals have an amount but no line items~~ — RESOLVED in `0014_pricing.sql`
 
-**Severity: medium.**
+**Was: medium severity. Now built and tested.**
 
-`service_jobs` has `service_job_items`, but a deal carries only a scalar
-`amount`. Real sales deals are itemised, and quoting, invoicing, and margin
-analysis all need the breakdown. Relatedly, `services` is a service catalogue,
-not a general product catalogue — no cost basis, so no margin; no price book, so
-no per-currency or per-segment pricing.
+- `services` gained `unit_cost`, `cost_currency`, `sku`, `is_stockable` — a cost
+  basis on the existing catalogue rather than a second `products` table that
+  would drift from it. NULL cost means *unknown*, not zero.
+- `price_books` + `price_book_entries` — per currency, per volume tier, with
+  effective dating. `app.resolve_price()` picks the highest applicable tier and
+  reports whether the price came from a book or the catalogue.
+- `deal_line_items` — price, cost, SKU and description snapshotted at the moment
+  of sale, with the source book recorded. Gross, discount, net, tax, total, cost
+  and margin are generated columns defined so `net + tax = total` exactly and
+  tax lands on the discounted net.
+- `deals.amount` now rolls up from the lines in the same transaction, and a hand
+  edit on an itemised deal is refused rather than silently overwritten.
+- `app.deal_totals()` reports `cost_known`, returning a NULL margin rather than
+  one computed against only the lines that happen to carry a cost.
+
+See DECISIONS.md D17 and D18.
+
+**Deliberately not built:** quotes and invoices as documents. A line item is the
+basis for both, but a quote has versions, an approval state, and an expiry, and
+an invoice has a payment lifecycle — those are their own subsystems, and the
+ledger rules in `CLAUDE.md` §7 apply to the invoice one in a way they do not
+here.
 
 ---
 
@@ -181,6 +198,9 @@ something sensitive in a custom field.
 - **Import batches** — a bulk import cannot be traced or rolled back.
 - **FX rate provenance** — `deals.fx_rate` records a rate but not where it came
   from or when, so historical conversions are unauditable.
+- **Per-account contract pricing** — price books are per currency and segment,
+  not per customer. The shape is an `account_id` on `price_books` plus one more
+  precedence step in `app.resolve_price()`.
 - **Storage quotas** — `files` records `byte_size` per blob but nothing caps a
   tenant's total. A per-organization limit checked on `complete_file_upload` is
   the obvious shape; a running total on `organizations` would serialise every
