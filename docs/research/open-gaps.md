@@ -120,29 +120,42 @@ here.
 
 ---
 
-## 4. No automation layer
+## 4. ~~No automation layer~~ — RESOLVED in `0015_automation.sql`
 
-**Severity: medium. Architecture worth settling early.**
+**Was: medium severity, "architecture worth settling early". Now built and
+tested — and settling it early was the right call.**
 
-"When a deal enters Negotiation, create a task for the owner" has no home.
-SuiteCRM's rules engine and n8n's workflow model both address this. n8n's
-licence forbids embedding it, but its data model is the right reference:
+The design constraint this entry flagged is the one the whole engine is shaped
+around: a Network-class action must **suspend** the run pending approval, not
+block a worker. Approval is a run status, the worker's lease is released, and a
+decision re-queues the run.
 
-- Workflow definitions versioned, with run history split hot/cold (metadata in
-  one table, heavy payload in a 1:1 companion) — otherwise execution history
-  swamps the table you query for status.
-- Recurrence separated from concrete runs: a `scheduled_job` describes *when it
-  should run*, `scheduled_task` rows are *specific runs* that workers claim.
-- A deduplication key on triggers, so a webhook delivered twice runs once.
-- Per-action retry with explicit error branches, rather than exceptions.
+What that forced: a durable state machine — `automation_runs` (hot metadata) +
+`automation_run_payloads` (cold 1:1 companion), `automation_steps` with per-step
+retry and backoff, worker leases with reclaim, `approval_requests` as the
+governance trail, `scheduled_jobs` separate from the runs materialised from
+them, and dedup keys so a twice-delivered webhook runs once.
 
-**The Yourider-specific requirement:** a Network-class action must *suspend* the
-run pending approval — n8n's wait-state pattern — not block a worker thread.
-The approval gate in `CLAUDE.md` §3 becomes a first-class execution status. That
-design constraint should be settled before the automation table shape is fixed,
-because it is hard to add to a synchronous executor afterwards.
+`app.gate_verdict()` is `CLAUDE.md` §3 as a function — all fifteen class/tier
+combinations asserted in `automation_test.sql`, and `verify.ts` checks the
+TypeScript copy of the matrix against the live database. Destructive pauses at
+every tier including `full`; read-only blocks rather than prompts; an unanswered
+request expires and the run fails; an unattended run that would pause fails
+loudly with the reason recorded.
 
----
+See DECISIONS.md D19–D22.
+
+**Deliberately not built:** the worker. The database owns the state machine, the
+authorisation decision and the trail; a process outside does the effects and
+reports back through `claim_automation_run` / `begin_step` / `complete_step` /
+`fail_step`. An executor inside the database would hold a transaction open
+across every outbound network call.
+
+**Also not built:** condition evaluation. `automation_versions.conditions` is
+stored and passed through untouched — deciding whether a condition matches means
+an expression language, and inventing one is a larger decision than this
+migration should make on its own. Until then a worker evaluates conditions and
+cancels the run if they do not hold.
 
 ## 5. Email and calendar have no identity
 
@@ -198,6 +211,8 @@ something sensitive in a custom field.
 - **Import batches** — a bulk import cannot be traced or rolled back.
 - **FX rate provenance** — `deals.fx_rate` records a rate but not where it came
   from or when, so historical conversions are unauditable.
+- **Automation condition language** — `automation_versions.conditions` is stored
+  but not evaluated by the database; see §4.
 - **Per-account contract pricing** — price books are per currency and segment,
   not per customer. The shape is an `account_id` on `price_books` plus one more
   precedence step in `app.resolve_price()`.

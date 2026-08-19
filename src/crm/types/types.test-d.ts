@@ -44,6 +44,20 @@ import type {
   PriceQuote,
 } from './pricing.js';
 import { PriceSource } from './pricing.js';
+import type {
+  ApprovalRequest,
+  AutomationAction,
+  AutomationRunStatus,
+  StepTicket,
+} from './automation.js';
+import {
+  AutonomyTier,
+  CommandClass,
+  GATE_MATRIX,
+  GateVerdict,
+  isTerminalRun,
+  needsApproval,
+} from './automation.js';
 import { MembershipRole, StageKind, isTerminalStage } from './enums.js';
 import type { Numeric } from './scalars.js';
 
@@ -465,4 +479,73 @@ const oneOff: AddDealLineItemArgs = {
   description: 'Custom onboarding',
 };
 void oneOff;
+
+// ---------------------------------------------------------------------------
+// The approval gate
+// ---------------------------------------------------------------------------
+
+function takesCommandClass(_c: CommandClass): void {}
+takesCommandClass(CommandClass.Destructive); // ok
+
+// @ts-expect-error 'delete' is not a command class — 'destructive' is
+takesCommandClass('delete');
+
+function takesTier(_t: AutonomyTier): void {}
+takesTier(AutonomyTier.Supervised); // ok
+
+// @ts-expect-error 'admin' is not an autonomy tier
+takesTier('admin');
+
+// The two rules that must survive any refactor of the matrix, asserted at the
+// type level as well as in automation_test.sql. If someone edits GATE_MATRIX to
+// let destructive actions through at the full tier, this stops compiling.
+const destructiveAtFull: 'approve' = GATE_MATRIX.destructive.full;
+void destructiveAtFull;
+
+const writeAtReadOnly: 'blocked' = GATE_MATRIX.write.read_only;
+void writeAtReadOnly;
+
+const readAlwaysProceeds: 'proceed' = GATE_MATRIX.read.read_only;
+void readAlwaysProceeds;
+
+const willPause: boolean = needsApproval(CommandClass.Network, AutonomyTier.Supervised);
+void willPause;
+
+// A ticket's verdict is the union, so a switch over it is exhaustive.
+declare const stepTicket: StepTicket;
+const stepVerdict: GateVerdict = stepTicket.verdict;
+void stepVerdict;
+
+// @ts-expect-error 'retry' is not a gate verdict
+const badVerdict: GateVerdict = 'retry';
+void badVerdict;
+
+// step_id is null on the 'done' and 'wait' tickets, so callers must narrow.
+// @ts-expect-error step_id may be null when the run has finished
+const stepId: string = stepTicket.step_id;
+void stepId;
+
+// An action must declare its command class; inference from `kind` is exactly
+// the hole this type closes.
+const action: AutomationAction = { kind: 'send_email', command_class: 'network' };
+void action;
+
+// @ts-expect-error an action without a command_class is not an action
+const classless: AutomationAction = { kind: 'mystery' };
+void classless;
+
+declare const runStatus: AutomationRunStatus;
+const finished: boolean = isTerminalRun(runStatus);
+void finished;
+
+// An expired approval is not a rejection, and the type keeps both.
+declare const approval: ApprovalRequest;
+if (approval.decision === 'expired') {
+  // Nobody decided it, so nobody is attributed.
+  const decider: null | string = approval.decided_by;
+  void decider;
+}
+
+// @ts-expect-error a decision is recorded by the database, not assigned here
+approval.decision = 'approved';
 

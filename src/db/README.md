@@ -346,6 +346,133 @@ Its audit trigger is column-scoped (`AFTER UPDATE OF upload_state, scan_status,
 …`) so that counter churn does not fill the audit trail with rows recording that
 a derived number moved.
 
+## Automation, and the approval gate
+
+"When a deal enters Negotiation, create a task for the owner" lives here. The
+mechanics follow n8n's data model; its licence forbids embedding it (DECISIONS
+D10), and the approval semantics are this system's own, from `CLAUDE.md` §3.
+
+### Why it is a state machine and not a loop
+
+A Network-class action must **suspend** the run pending approval, not block a
+worker waiting for a human. A blocking wait holds a connection and a process for
+as long as a person takes to answer — minutes, or a weekend — so a hundred
+pending approvals is a hundred stalled workers.
+
+So approval is a run *status*, the worker's lease is released, and a decision
+re-queues the run for whichever worker picks it up next. Everything else about
+the shape follows from that one requirement, which is why it is in the first
+design rather than retrofitted.
+
+**This migration executes nothing.** There is no worker in the database. It owns
+the state machine, the authorisation decision and the trail; a process outside
+does the effects and reports back. An executor inside the database would hold a
+transaction open across every outbound network call.
+
+### The gate
+
+`app.gate_verdict(command_class, autonomy_tier)` is `CLAUDE.md` §3 as a
+function, and the only place the rule is written in SQL:
+
+| class | read_only | supervised | full |
+| --- | --- | --- | --- |
+| `read` | proceed | proceed | proceed |
+| `write` | blocked | proceed | proceed |
+| `network` | blocked | **approve** | proceed |
+| `install` | blocked | **approve** | proceed |
+| `destructive` | blocked | **approve** | **approve** |
+
+Two rows matter more than the rest:
+
+- **Destructive pauses at every tier**, including `full`. Nothing is ever fully
+  autonomous for deletion, drop, or bulk mutation.
+- **Read-only blocks rather than prompts.** A read-only automation asking
+  permission to write is a misconfiguration, and turning it into a prompt trains
+  people to approve reflexively.
+
+The matrix also exists in `src/crm/types/automation.ts` so a client can say
+"this will need approval" before submitting. `assertGateMatrixMatches()` in
+`verify.ts` compares the two against the live database — duplication that
+nothing checks is duplication that drifts.
+
+### The worker protocol
+
+```sql
+SELECT app.claim_automation_run('worker-1');       -- leased, status = running
+SELECT * FROM app.begin_step(:run_id);             -- verdict + what to do
+SELECT app.complete_step(:step_id, :output);
+-- or
+SELECT app.fail_step(:step_id, 'timeout', 'upstream slow', true);
+```
+
+`begin_step` returns one of five verdicts: `proceed`, `approve`, `blocked`,
+`done`, `wait`. Only `proceed` means keep working this run; `approve` is the one
+that comes back, once a human decides.
+
+An approval authorises **that step**, including its retries. Without that, the
+gate re-evaluates after the decision, sees the same class at the same tier, and
+asks again — a run that can never pass its first Network action however many
+times someone says yes. (That bug was real, and `automation_test.sql` §5 is the
+regression test.) Whether a retry is safe to repeat is an idempotency question
+for the worker, not an authorisation question for the gate.
+
+### Silence is not consent
+
+`CLAUDE.md` §3: *"No response within the session means it does not happen —
+never assume approval from silence or a stale prompt."*
+
+```sql
+SELECT app.expire_approvals();   -- run from cron
+```
+
+An unanswered request becomes `expired` and its run **fails**. `expired` is a
+distinct decision from `rejected` because "a human said no" and "nobody
+answered" are different answers to "why did this not go out" — and only one of
+them indicates a broken process. A request past its deadline cannot be decided
+afterwards, which is the stale-prompt case.
+
+### Unattended runs
+
+An automation flagged `is_unattended` has nobody to ask. When it reaches an
+action that would pause, it **fails loudly** with
+`error_code = 'approval_required_unattended'` and a message saying which step
+and why. It does not skip the action, and it does not proceed. Steps that
+already succeeded stay succeeded — failing the run does not pretend completed
+work never happened.
+
+### Durability
+
+- **Runs are split hot/cold.** `automation_runs` is metadata the queue and every
+  dashboard read; `automation_run_payloads` is the 1:1 companion holding trigger
+  bodies and outputs. Retention prunes payloads on a short clock while run
+  metadata stays queryable — and the queue never drags payloads through memory.
+- **Leases, not locks.** A worker that dies leaves a lease that stops being
+  renewed; `app.reclaim_expired_runs()` returns the run and its in-flight step
+  to the queue. Without it a crashed worker strands its run in `running`
+  forever, which is the most common way a queue quietly stops.
+- **Retry is per step.** Re-running a whole workflow because its fourth action
+  hit a rate limit repeats three side effects that already succeeded — for a
+  Network action, that is the same email twice. Backoff is 30s, 60s, 120s…
+  capped at an hour, and the run suspends on a timer rather than being held.
+- **Runs pin their version.** Editing an automation cannot change a run already
+  under way; a run that suspended on Friday must not resume Monday executing
+  actions nobody approved.
+- **Dedup keys.** `(automation_id, dedup_key)` is unique, so a twice-delivered
+  webhook runs once. `app.enqueue_automation_run` returns the existing run
+  rather than raising, so a caller's retry is a no-op instead of an error.
+- **Recurrence is not a run.** `scheduled_jobs` says *when*;
+  `app.materialise_scheduled_runs()` creates the concrete runs, keyed by window
+  so two schedulers produce one run. `catchup_limit` stops a job that was down
+  for a day from waking up and firing 288 times.
+
+### What is audited
+
+`automations`, `automation_versions` and `approval_requests` — who changed a
+rule, and who approved an action. Runs and steps are not: they are already a
+history of themselves and churn through statuses on every poll, so auditing them
+would bury the trail in bookkeeping (DECISIONS D16). `approval_requests` has no
+DELETE policy and a decided request cannot be re-decided.
+
 ## Partitioning and maintenance
 
 `activities` and `audit_log` are RANGE-partitioned by month. These two grow with

@@ -440,3 +440,107 @@ error message says which one you are in, but it is a mode nonetheless.
 **Revisit if:** the manual path stops being used in practice. Then the column
 becomes derived unconditionally and the mode disappears.
 
+---
+
+## D19 — Approval is an execution status, not a blocking wait
+
+**Decided and built** (`0015_automation.sql`), settling the constraint D10 said
+had to be settled before the table shape was fixed.
+
+When a step needs approval, the run's status becomes `waiting_approval` and the
+worker's **lease is released**. A decision re-queues the run for whichever
+worker picks it up next.
+
+**Over:** the obvious design — an executor that walks the action list and waits
+for a decision when it reaches one that needs approval.
+
+**Why:** a blocking wait holds a worker for as long as a person takes to answer.
+Minutes, or a weekend. A hundred pending approvals is a hundred stalled workers,
+and the failure is invisible until the queue stops moving.
+
+**What this forced:** the whole engine is a durable state machine — steps as
+rows, leases, per-step retry — rather than a function. That is a large cost paid
+up front for one requirement, and it is the right time to pay it: retrofitting
+suspension into a synchronous executor means rewriting it.
+
+**The database executes nothing.** It owns the state machine, the authorisation
+decision and the trail; a worker outside does the effects. An executor inside
+would hold a transaction open across every outbound network call.
+
+**Revisit if:** approvals become rare enough that suspension is never exercised
+in practice — but the cheap-looking version is only cheap until the first
+weekend-long approval.
+
+---
+
+## D20 — An approval authorises one step, including its retries
+
+**Decided** (`0015_automation.sql`), after a bug the tests caught.
+
+`app.begin_step()` originally re-evaluated the gate every time it was called.
+After a human approved a Network action, the run was re-queued, the gate saw the
+same class at the same tier, and asked again — a run that could never pass its
+first Network action however many times someone said yes.
+
+`begin_step` now treats an existing approved request for that step as
+authorisation to proceed.
+
+**Scope of the grant, stated deliberately:** one step, for its retries, and not
+beyond. It does not carry to later steps — those re-enter the gate. Retrying a
+send that timed out is the same action a person already approved, and
+re-prompting on every attempt trains people to approve reflexively, which is a
+worse security outcome than the extra prompt is worth.
+
+**What this pushes elsewhere:** whether a retry is *safe* to repeat is an
+idempotency question for the worker making the call, not an authorisation
+question for the gate. The gate answers "may this happen"; it cannot answer
+"did it already partly happen".
+
+**How it was found:** an end-to-end test that approved a request and then asked
+for the next step. Neither a unit test of `gate_verdict` nor review would have
+caught it — every individual piece was correct, and the bug was in the loop
+between them.
+
+---
+
+## D21 — Silence is a distinct outcome from refusal
+
+**Decided and built** (`0015_automation.sql`).
+
+`approval_decision` has both `rejected` and `expired`. An unanswered request
+expires, and its run fails — the action does not happen, which is `CLAUDE.md`
+§3's rule that silence is never consent.
+
+**Why two values rather than one:** both mean the action did not happen, so a
+single "denied" would be enough to make the engine behave correctly. They are
+kept apart because they answer "why did this not go out" differently. A
+rejection is the system working. A queue of expiries is a broken process —
+nobody is watching the approvals — and collapsing them hides exactly the signal
+worth acting on.
+
+**Consequently:** an expired request carries no `decided_by`, enforced by CHECK.
+Nobody decided it. And a request past its deadline cannot be decided afterwards,
+which is the "stale prompt" case §3 names.
+
+---
+
+## D22 — An unattended run fails loudly rather than degrading
+
+**Decided and built** (`0015_automation.sql`).
+
+An automation flagged `is_unattended` that reaches an action needing approval
+fails with `approval_required_unattended` and records which step and why.
+
+**Over:** the two tempting alternatives, both of which `CLAUDE.md` §3 rules out
+by name — skipping the action and carrying on, or proceeding without approval
+because no one is there to ask.
+
+**Why loudly:** a skipped action produces a run that reports success while
+having done less than it claims, and the gap is discovered when someone notices
+the emails were never sent. Proceeding is worse: it makes the unattended flag a
+way to escape the gate rather than a constraint on it.
+
+**Steps that already succeeded stay succeeded.** Failing the run does not
+rewrite completed work as though it never happened — the record has to show what
+actually ran before the stop.
+

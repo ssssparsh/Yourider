@@ -363,7 +363,63 @@ BEGIN
   END IF;
   RAISE NOTICE '  ok: price books, prices and line items all isolated';
 
+  -- =========================================================================
+  RAISE NOTICE '--- 10. automation and approvals are tenant-isolated ---';
+  -- =========================================================================
+  SELECT count(*) INTO v_count FROM automations WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s automations', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM automation_runs WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s runs', v_count;
+  END IF;
+
+  -- Run payloads carry the triggering record and every action's output, so a
+  -- leak here is a leak of the underlying business data, not just of metadata.
+  SELECT count(*) INTO v_count FROM automation_run_payloads
+   WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s run payloads', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count FROM approval_requests WHERE organization_id = v_org_a;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: tenant B sees % of tenant A''s approval requests', v_count;
+  END IF;
+  RAISE NOTICE '  ok: automations, runs, payloads and approvals all isolated';
+
   PERFORM set_config('app.current_org_id', v_org_a::text, false);
+
+  -- The governance trail is what this subsystem exists to produce: who was
+  -- asked, and what they said. It has no DELETE policy.
+  BEGIN
+    DELETE FROM approval_requests WHERE organization_id = v_org_a;
+    IF NOT EXISTS (SELECT 1 FROM approval_requests WHERE organization_id = v_org_a) THEN
+      RAISE EXCEPTION 'FAIL: approval history was deleted';
+    END IF;
+    RAISE NOTICE '  ok: approval_requests delete affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: approval_requests delete blocked (no DELETE policy)';
+  END;
+
+  -- A published definition is what a run was authorised under.
+  BEGIN
+    UPDATE automation_versions SET actions = '[]'::jsonb
+     WHERE organization_id = v_org_a;
+    IF EXISTS (
+      SELECT 1 FROM automation_versions
+       WHERE organization_id = v_org_a AND actions = '[]'::jsonb
+         AND jsonb_array_length(actions) = 0
+         AND version = 1
+    ) THEN
+      RAISE EXCEPTION 'FAIL: a published automation version was rewritten';
+    END IF;
+    RAISE NOTICE '  ok: automation_versions update affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: automation_versions update blocked (no UPDATE policy)';
+  END;
 
   RAISE NOTICE '';
   RAISE NOTICE '=== ALL RLS ASSERTIONS PASSED (as %) ===', current_user;

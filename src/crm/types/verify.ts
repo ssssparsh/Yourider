@@ -13,12 +13,20 @@
 import { DATABASE_ENUMS } from './enums.js';
 import { CONSENT_DATABASE_ENUMS } from './consent.js';
 import { ATTACHMENT_DATABASE_ENUMS } from './attachments.js';
+import {
+  AUTOMATION_DATABASE_ENUMS,
+  AutonomyTier,
+  CommandClass,
+  GATE_MATRIX,
+} from './automation.js';
+import type { AutonomyTier as Tier, CommandClass as Klass } from './automation.js';
 
 /** Every registered enum across all modules. */
 const ALL_DATABASE_ENUMS = {
   ...DATABASE_ENUMS,
   ...CONSENT_DATABASE_ENUMS,
   ...ATTACHMENT_DATABASE_ENUMS,
+  ...AUTOMATION_DATABASE_ENUMS,
 } as const;
 
 /** Minimal query interface — satisfied by a `pg` Pool or Client. */
@@ -137,3 +145,62 @@ export async function assertAllTenantTablesHaveRls(db: Queryable): Promise<void>
       `Add SELECT app.apply_tenant_rls('<table>') to the migration.`,
   );
 }
+
+/**
+ * Verifies that GATE_MATRIX agrees with `app.gate_verdict` for every
+ * class/tier combination.
+ *
+ * The matrix is expressed twice on purpose — the client renders "this will need
+ * approval" before submitting, and the database enforces it regardless of what
+ * the client believed. Duplication that nothing checks is duplication that
+ * drifts, and drift here means the UI tells someone an action is safe while the
+ * database is about to suspend it, or worse, the reverse.
+ */
+export async function findGateMatrixDrift(db: Queryable): Promise<string[]> {
+  const { rows } = await db.query<{
+    command_class: Klass;
+    autonomy_tier: Tier;
+    verdict: string;
+  }>(
+    `SELECT c.v AS command_class, t.v AS autonomy_tier,
+            app.gate_verdict(c.v, t.v) AS verdict
+       FROM unnest(enum_range(NULL::command_class)) AS c(v)
+       CROSS JOIN unnest(enum_range(NULL::autonomy_tier)) AS t(v)`,
+  );
+
+  const mismatches: string[] = [];
+  for (const row of rows) {
+    const expected = GATE_MATRIX[row.command_class]?.[row.autonomy_tier];
+    if (expected !== row.verdict) {
+      mismatches.push(
+        `${row.command_class} at ${row.autonomy_tier}: ` +
+          `database says ${row.verdict}, GATE_MATRIX says ${String(expected)}`,
+      );
+    }
+  }
+
+  // A combination the database has and the matrix does not is drift too — a new
+  // enum value would otherwise read as `undefined` and quietly compare unequal
+  // only if the verdict happened to differ.
+  const expectedCount =
+    Object.values(CommandClass).length * Object.values(AutonomyTier).length;
+  if (rows.length !== expectedCount) {
+    mismatches.push(
+      `database has ${rows.length} class/tier combinations, ` +
+        `GATE_MATRIX covers ${expectedCount}`,
+    );
+  }
+
+  return mismatches;
+}
+
+export async function assertGateMatrixMatches(db: Queryable): Promise<void> {
+  const drift = await findGateMatrixDrift(db);
+  if (drift.length === 0) return;
+  throw new Error(
+    `The approval gate in src/crm/types/automation.ts disagrees with ` +
+      `app.gate_verdict:\n  ${drift.join('\n  ')}\n` +
+      `Both must match CLAUDE.md §3.`,
+  );
+}
+
