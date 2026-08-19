@@ -13,4 +13,7 @@ export * from './consent.js';
 export * from './attachments.js';
 export * from './pricing.js';
 export * from './automation.js';
+export * from './workspace.js';
+export * from './platform.js';
+export * from './messaging.js';
 export * from './verify.js';

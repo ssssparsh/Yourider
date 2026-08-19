@@ -87,6 +87,26 @@ echo "$AUTO_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
 echo "$AUTO_OUT" | grep -q 'ALL AUTOMATION ASSERTIONS PASSED' || {
   echo "    automation suite did not pass"; exit 1; }
 
+echo "==> workspace suite"
+WS_OUT=$(psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/workspace_test.sql" 2>&1) \
+  || { echo "$WS_OUT"; exit 1; }
+
+echo "$WS_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
+  | grep -Ev '^(DO|CONTEXT)' || true
+
+echo "$WS_OUT" | grep -q 'ALL WORKSPACE ASSERTIONS PASSED' || {
+  echo "    workspace suite did not pass"; exit 1; }
+
+echo "==> platform suite"
+PLATFORM_OUT=$(psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/platform_test.sql" 2>&1) \
+  || { echo "$PLATFORM_OUT"; exit 1; }
+
+echo "$PLATFORM_OUT" | sed -e 's/^psql:[^ ]* //' -e 's/^NOTICE:  /    /' \
+  | grep -Ev '^(DO|CONTEXT)' || true
+
+echo "$PLATFORM_OUT" | grep -q 'ALL PLATFORM ASSERTIONS PASSED' || {
+  echo "    platform suite did not pass"; exit 1; }
+
 echo "==> creating unprivileged role for RLS suite"
 psql_q -d "$DB" <<SQL
 DROP ROLE IF EXISTS $APP_ROLE;

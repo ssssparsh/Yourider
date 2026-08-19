@@ -157,60 +157,106 @@ an expression language, and inventing one is a larger decision than this
 migration should make on its own. Until then a worker evaluates conditions and
 cancels the run if they do not hold.
 
-## 5. Email and calendar have no identity
+## 5. ~~Email and calendar have no identity~~ — RESOLVED in `0020_messaging_identity.sql`
 
-**Severity: medium. Expensive to retrofit.**
+**Was: medium severity, "expensive to retrofit". Now built and tested — the
+identity model, not the sync.**
 
-`activities.kind = 'email'` records that an email happened. There is no thread
-identity, no provider message-id, and no per-user mailbox connection — so
-two-way sync, deduplication of a message seen twice, and threading are all
-impossible. twenty models `messageThread` / `message` / `messageParticipant` /
-`connectedAccount` / `calendarEvent` as first-class objects. Adding this after
-there is activity data means backfilling identity that was never captured.
+`connected_accounts` / `message_threads` / `messages` / `message_participants`
+/ `calendar_events`, mirroring twenty's shape. `messages.provider_message_id`
+is the dedup key; `message_threads.message_count` / `last_message_at` are
+recomputed on every message change, the same shape as `files.attachment_count`
+(D15) and for the same reason a hand-maintained counter drifts.
 
----
+See DECISIONS.md D28.
 
-## 6. Teams are free text
-
-**Severity: medium.**
-
-`memberships.team` is a string. Manager-scoped visibility ("see everything my
-team owns") needs a real table, and any hierarchy needs it to be recursive.
-Currently a typo creates a new team silently.
-
----
-
-## 7. No saved views
-
-**Severity: low-medium.**
-
-Filters, sorts, column selection, and board configuration have nowhere to live,
-so they end up in frontend state and cannot be shared, defaulted per role, or
-referenced by automation.
+**Deliberately not built: the sync.** Nothing here talks to Gmail, Microsoft
+Graph, or a mail server — that needs OAuth and a live API connection this
+environment does not have. `connected_accounts.credential_ref` is a pointer
+into a secrets manager, not the token itself, for the same reason CLAUDE.md §3
+keeps secrets out of prompts and commits. See the API-requirements note at the
+end of this document.
 
 ---
 
-## 8. RLS is tenant-level only
+## 6. ~~Teams are free text~~ — RESOLVED in `0016_teams.sql`
 
-**Severity: low now, high if regulated data arrives.**
+**Was: medium severity. Now built and tested.**
 
-Isolation is per-organization. There is no field-level redaction — no way to
-hide a salary or identifier from some members of the same tenant — and no
-row-level sharing rules beyond the tenant boundary. twenty models object-,
-field-, and row-level permissions as data. Worth knowing before someone stores
-something sensitive in a custom field.
+`teams`, with a recursive `parent_team_id` guarded against cycles by a trigger
+(0003's `accounts.parent_id` defers deeper cycles to application code; teams
+are dozens of rows walked on every visibility check, so a real guard is worth
+it here). `memberships.team` is retained non-destructively; `team_id` is
+additive. `app.visible_team_ids()` answers what a role can reach — owner/admin
+see everything, a manager sees their team and its descendants, everyone else
+sees just their own team — matching the comment `membership_role` has carried
+since 0002.
+
+See DECISIONS.md D23.
+
+**Not (yet) wired into RLS.** `visible_team_ids()` is a read-only helper; no
+SELECT policy consults it. See §8 / D24 for why.
+
+---
+
+## 7. ~~No saved views~~ — RESOLVED in `0017_saved_views.sql`
+
+**Was: low-medium severity. Now built and tested.**
+
+`saved_views`: filters/sort/columns/board config as opaque JSONB (D5's
+reasoning — a frontend filter DSL outlives migration cadence), with
+`private` / `team` / `organization` visibility enforced by a policy that
+replaces the tenant default rather than layering on top of it.
+
+---
+
+## 8. RLS is tenant-level only — PARTIALLY ADDRESSED in `0018_field_row_permissions.sql`
+
+**Was: low now, high if regulated data arrives. Groundwork built; enforcement
+deliberately deferred.**
+
+`field_permissions` + `app.redact_fields()` is real and enforced (by the
+application, at read time — see the migration for why column-level Postgres
+security does not fit a pooled connection). `record_shares` records
+who-can-see-what beyond the standing policy, but **nothing consults it yet**:
+wiring it into every business table's SELECT policy would change existing
+tenant-wide visibility behaviour, which is a product decision, not a side
+effect of adding a table.
+
+See DECISIONS.md D24 for the full reasoning and the revisit condition.
+
+**Still true:** isolation beyond "restrict this one field or record" is
+per-organization only. Worth knowing before someone stores something sensitive
+in a custom field with no `field_permissions` row protecting it.
 
 ---
 
 ## 9. Smaller items
 
-- **Webhooks and API keys** — `actor_type = 'integration'` exists in the enum
-  with no mechanism behind it.
-- **Notifications** — no in-app notification model.
-- **Merge and dedup** — no way to record that two contacts are the same person.
-- **Import batches** — a bulk import cannot be traced or rolled back.
-- **FX rate provenance** — `deals.fx_rate` records a rate but not where it came
-  from or when, so historical conversions are unauditable.
+- **~~Webhooks and API keys~~ — RESOLVED in `0019_platform.sql`.**
+  `api_keys` (SHA-256-hashed secrets, shown once — D25) and
+  `webhook_subscriptions` / `webhook_deliveries` (server-generated HMAC signing
+  secret, same reasoning as a storage key). Delivery — the outbound HTTP call —
+  is not built; a worker outside makes it, the same boundary as the automation
+  engine.
+- **~~Notifications~~ — RESOLVED in `0019_platform.sql`.** `notifications`,
+  addressed to one person, with a policy narrower than the tenant default —
+  the case that needed it immediately rather than waiting on §8's general
+  mechanism.
+- **~~Merge and dedup~~ — RESOLVED in `0019_platform.sql`.**
+  `app.merge_contacts()` / `app.merge_accounts()` repoint every live reference
+  and soft-delete the loser; `entity_merges` snapshots what was lost. History
+  (`activities`, `audit_log`) is not rewritten — see D26.
+- **~~Import batches~~ — RESOLVED in `0019_platform.sql`.** `import_batches` +
+  `import_batch_id` on accounts/contacts/leads/deals +
+  `app.rollback_import_batch()`, which soft-deletes everything a batch created.
+- **~~FX rate provenance~~ — RESOLVED in `0019_platform.sql`.** `fx_rates`:
+  immutable, point-in-time, sourced. Does not fetch rates — that needs a live
+  rates API; see the API-requirements note below.
+- **~~Denormalised label on timeline rows~~ — RESOLVED in `0019_platform.sql`.**
+  `activities.entity_label`, cached at write time. `activities.entity_id`
+  itself still carries no FK validation — see D27 for why that trade-off is
+  unchanged by adding the label.
 - **Automation condition language** — `automation_versions.conditions` is stored
   but not evaluated by the database; see §4.
 - **Per-account contract pricing** — price books are per currency and segment,
@@ -223,9 +269,6 @@ something sensitive in a custom field.
   rollup.
 - **Tasks and notes attach to exactly one record** via `entity_type` +
   `entity_id`. twenty uses join tables to allow several targets.
-- **Denormalised label on timeline rows** — twenty caches the linked record's
-  name so a timeline entry still reads sensibly after the record is deleted.
-  Cheap, and it makes deletion non-destructive to history.
 
 ---
 
@@ -246,3 +289,31 @@ indexing on any field, but costs lock-taking DDL on a live system and catalogue
 bloat linear in tenant count. At Yourider's intended tenant count, shared tables
 with RLS is the right shape. One idea worth keeping: *promote* a hot custom
 field to a real column for a tenant that needs it, with JSONB as the default.
+
+---
+
+## What now genuinely needs a third-party API
+
+Everything above this line was built without one — 22 migrations, 8 test
+suites, 249 database assertions, all running against local Postgres. What is
+left in `open-gaps.md` that a schema and a state machine cannot finish alone:
+
+1. **Object storage** (S3 / R2 / MinIO / Supabase Storage) — attachments
+   (`0013`) have nowhere to put bytes yet; the schema is the index, not the
+   filesystem, by design (D15).
+2. **Email/SMS sending** (SendGrid, Postmark, SES, Twilio, ...) — the consent
+   gate (`0011`) has nothing to authorise sends *to*; nothing is currently
+   dispatching anything.
+3. **Antivirus scanning** (ClamAV self-hosted, or a hosted scanner) — the
+   attachment download gate (`0013`) fails closed on `scan_status = 'pending'`
+   and there is no scanner recording a verdict yet.
+4. **Mailbox/calendar OAuth** (Gmail API, Microsoft Graph) — the identity model
+   (`0020`) is ready; nothing syncs into it yet.
+5. **A live FX rates feed** — `fx_rates` (`0019`) records a rate, its source,
+   and when it applied; nothing is fetching one yet.
+
+Everything else flagged as remaining (§4's condition language, §8's
+row-sharing enforcement, per-account pricing, storage quotas, teams/tasks
+join-table generalisation) is more schema and state-machine work, the same
+kind already done here — no key required.
+

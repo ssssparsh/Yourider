@@ -92,6 +92,7 @@ const validAccount: AccountInsert = {
   website: null,
   owner_id: null,
   parent_id: null,
+  import_batch_id: null,
   created_by: null,
   // account_kind, lifecycle, custom_fields, tags all have database defaults
 };
@@ -111,6 +112,7 @@ const withDefaultsSet: AccountInsert = {
   website: null,
   owner_id: null,
   parent_id: null,
+  import_batch_id: null,
   created_by: null,
 };
 void withDefaultsSet;
@@ -127,6 +129,7 @@ const forgedTenant: AccountInsert = {
   website: null,
   owner_id: null,
   parent_id: null,
+  import_batch_id: null,
   created_by: null,
 };
 void forgedTenant;
@@ -143,6 +146,7 @@ const forgedId: AccountInsert = {
   website: null,
   owner_id: null,
   parent_id: null,
+  import_batch_id: null,
   created_by: null,
 };
 void forgedId;
@@ -168,6 +172,8 @@ const forgedBaseAmount: DealInsert = {
   owner_id: null,
   source_lead_id: null,
   last_activity_at: null,
+  fx_rate_source_id: null,
+  import_batch_id: null,
   created_by: null,
 };
 void forgedBaseAmount;

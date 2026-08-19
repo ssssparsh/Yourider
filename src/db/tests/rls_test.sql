@@ -45,6 +45,11 @@ DECLARE
   v_user_a  uuid := nullif(current_setting('test.user_a', true), '')::uuid;
   v_viewer  uuid := nullif(current_setting('test.viewer', true), '')::uuid;
   v_count   int;
+  v_view    uuid;
+  v_share   uuid;
+  v_deal    uuid;
+  v_fx      uuid;
+  v_merge   uuid;
 BEGIN
   IF v_org_a IS NULL OR v_org_b IS NULL THEN
     RAISE EXCEPTION 'fixture missing: run functional_test.sql first';
@@ -90,9 +95,12 @@ BEGIN
   -- =========================================================================
   PERFORM set_config('app.current_org_id', v_org_b::text, false);
 
-  SELECT count(*) INTO v_count FROM accounts;
+  -- Not an absolute count: platform_test.sql legitimately creates an org-B
+  -- account of its own (a fixture for the cross-tenant merge assertion), so
+  -- the real invariant is "no foreign rows", not "no rows at all".
+  SELECT count(*) INTO v_count FROM accounts WHERE organization_id <> v_org_b;
   IF v_count <> 0 THEN
-    RAISE EXCEPTION 'FAIL: tenant B sees % accounts but created none', v_count;
+    RAISE EXCEPTION 'FAIL: tenant B can see % of tenant A''s accounts', v_count;
   END IF;
   RAISE NOTICE '  ok: tenant B sees 0 of tenant A''s accounts';
 
@@ -419,6 +427,159 @@ BEGIN
     RAISE NOTICE '  ok: automation_versions update affected no rows';
   EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE '  ok: automation_versions update blocked (no UPDATE policy)';
+  END;
+
+  -- =========================================================================
+  RAISE NOTICE '--- 11. workspace visibility (saved views, shares, notifications) ---';
+  -- =========================================================================
+  -- Self-contained: creates its own fixtures rather than depending on
+  -- workspace_test.sql having run first, since GUCs like app.current_user_id
+  -- are ordinary session settings this role is free to set regardless of which
+  -- Postgres role is connected — no elevated privilege needed to exercise them.
+  PERFORM set_config('app.current_org_id', v_org_a::text, false);
+  PERFORM set_config('app.current_user_id', v_user_a::text, false);
+
+  INSERT INTO saved_views (organization_id, entity_type, name, owner_id, visibility)
+    VALUES (v_org_a, 'deal', 'RLS private view', v_user_a, 'private')
+    RETURNING id INTO v_view;
+
+  PERFORM set_config('app.current_user_id', v_viewer::text, false);
+  SELECT count(*) INTO v_count FROM saved_views WHERE id = v_view;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: a colleague can see a private saved view';
+  END IF;
+  RAISE NOTICE '  ok: a private saved view is invisible to a colleague';
+
+  BEGIN
+    UPDATE saved_views SET name = 'hijacked' WHERE id = v_view;
+    IF EXISTS (SELECT 1 FROM saved_views WHERE id = v_view AND name = 'hijacked') THEN
+      RAISE EXCEPTION 'FAIL: a non-owner modified someone else''s saved view';
+    END IF;
+    RAISE NOTICE '  ok: a non-owner''s update to a saved view affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: a non-owner cannot write another user''s saved view';
+  END;
+
+  PERFORM set_config('app.current_user_id', v_user_a::text, false);
+  UPDATE saved_views SET visibility = 'organization' WHERE id = v_view;
+  PERFORM set_config('app.current_user_id', v_viewer::text, false);
+  SELECT count(*) INTO v_count FROM saved_views WHERE id = v_view;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL: an organization-visible view is still hidden';
+  END IF;
+  RAISE NOTICE '  ok: an organization-visible view reaches every member';
+  PERFORM set_config('app.current_user_id', v_user_a::text, false);
+
+  -- record_shares: visible to granter and recipient, not to an uninvolved
+  -- member — and the underlying record's own (unchanged, tenant-wide)
+  -- visibility is untouched by the share existing. See DECISIONS.md D24.
+  SELECT id INTO v_deal FROM deals WHERE organization_id = v_org_a LIMIT 1;
+
+  INSERT INTO record_shares (organization_id, entity_type, entity_id,
+                             shared_with_user_id, permission, granted_by)
+    VALUES (v_org_a, 'deal', v_deal, v_viewer, 'view', v_user_a)
+    RETURNING id INTO v_share;
+
+  PERFORM set_config('app.current_user_id', v_viewer::text, false);
+  SELECT count(*) INTO v_count FROM record_shares WHERE id = v_share;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'FAIL: the recipient cannot see a share made to them';
+  END IF;
+  RAISE NOTICE '  ok: the recipient can see a share made to them';
+
+  SELECT count(*) INTO v_count FROM deals WHERE id = v_deal;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION
+      'FAIL: standing tenant-wide deal visibility broke when a share exists';
+  END IF;
+  RAISE NOTICE '  ok: the shared deal remains visible under the standing tenant policy';
+  PERFORM set_config('app.current_user_id', v_user_a::text, false);
+
+  -- notifications: addressed to one person, invisible to everyone else in the
+  -- tenant, unlike the tenant-wide default apply_tenant_rls would otherwise give.
+  INSERT INTO notifications (organization_id, user_id, kind, title)
+    VALUES (v_org_a, v_user_a, 'system', 'RLS test notification');
+
+  PERFORM set_config('app.current_user_id', v_viewer::text, false);
+  SELECT count(*) INTO v_count FROM notifications
+   WHERE organization_id = v_org_a AND title = 'RLS test notification';
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'FAIL: a colleague can read another user''s notification';
+  END IF;
+  RAISE NOTICE '  ok: a notification is invisible to anyone but its recipient';
+  PERFORM set_config('app.current_user_id', v_user_a::text, false);
+
+  -- =========================================================================
+  RAISE NOTICE '--- 12. every table added by 0016-0020 is tenant-isolated ---';
+  -- =========================================================================
+  PERFORM set_config('app.current_org_id', v_org_b::text, false);
+
+  SELECT
+      (SELECT count(*) FROM teams WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM saved_views WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM field_permissions WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM record_shares WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM api_keys WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM webhook_subscriptions WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM notifications WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM entity_merges WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM import_batches WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM fx_rates WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM connected_accounts WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM message_threads WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM messages WHERE organization_id = v_org_a)
+    + (SELECT count(*) FROM calendar_events WHERE organization_id = v_org_a)
+    INTO v_count;
+
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION
+      'FAIL: tenant B sees % foreign rows across the tables added by 0016-0020',
+      v_count;
+  END IF;
+  RAISE NOTICE '  ok: every table added by 0016-0020 is tenant-isolated (0 foreign rows)';
+
+  PERFORM set_config('app.current_org_id', v_org_a::text, false);
+
+  -- =========================================================================
+  RAISE NOTICE '--- 13. fx_rates and entity_merges are append-only ---';
+  -- =========================================================================
+  INSERT INTO fx_rates (organization_id, from_currency, to_currency, rate, source, as_of)
+    VALUES (v_org_a, 'GBP', 'USD', 1.25, 'test', now())
+    RETURNING id INTO v_fx;
+
+  BEGIN
+    DELETE FROM fx_rates WHERE id = v_fx;
+    IF NOT EXISTS (SELECT 1 FROM fx_rates WHERE id = v_fx) THEN
+      RAISE EXCEPTION 'FAIL: a historical fx rate was deleted';
+    END IF;
+    RAISE NOTICE '  ok: fx_rates delete affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: fx_rates delete blocked (no DELETE policy)';
+  END;
+
+  BEGIN
+    UPDATE fx_rates SET rate = 999 WHERE id = v_fx;
+    IF EXISTS (SELECT 1 FROM fx_rates WHERE id = v_fx AND rate = 999) THEN
+      RAISE EXCEPTION 'FAIL: a historical fx rate was rewritten';
+    END IF;
+    RAISE NOTICE '  ok: fx_rates update affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: fx_rates update blocked (no UPDATE policy)';
+  END;
+
+  INSERT INTO entity_merges (organization_id, entity_type, survivor_id, merged_id,
+                             merged_snapshot, merged_by)
+    VALUES (v_org_a, 'contact', gen_random_uuid(), gen_random_uuid(), '{}'::jsonb, v_user_a)
+    RETURNING id INTO v_merge;
+
+  BEGIN
+    DELETE FROM entity_merges WHERE id = v_merge;
+    IF NOT EXISTS (SELECT 1 FROM entity_merges WHERE id = v_merge) THEN
+      RAISE EXCEPTION 'FAIL: a merge record was deleted';
+    END IF;
+    RAISE NOTICE '  ok: entity_merges delete affected no rows';
+  EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE '  ok: entity_merges delete blocked (no DELETE policy)';
   END;
 
   RAISE NOTICE '';

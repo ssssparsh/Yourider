@@ -20,6 +20,9 @@ import {
   GATE_MATRIX,
 } from './automation.js';
 import type { AutonomyTier as Tier, CommandClass as Klass } from './automation.js';
+import { WORKSPACE_DATABASE_ENUMS } from './workspace.js';
+import { PLATFORM_DATABASE_ENUMS } from './platform.js';
+import { MESSAGING_DATABASE_ENUMS } from './messaging.js';
 
 /** Every registered enum across all modules. */
 const ALL_DATABASE_ENUMS = {
@@ -27,6 +30,9 @@ const ALL_DATABASE_ENUMS = {
   ...CONSENT_DATABASE_ENUMS,
   ...ATTACHMENT_DATABASE_ENUMS,
   ...AUTOMATION_DATABASE_ENUMS,
+  ...WORKSPACE_DATABASE_ENUMS,
+  ...PLATFORM_DATABASE_ENUMS,
+  ...MESSAGING_DATABASE_ENUMS,
 } as const;
 
 /** Minimal query interface — satisfied by a `pg` Pool or Client. */

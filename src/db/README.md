@@ -473,6 +473,125 @@ history of themselves and churn through statuses on every poll, so auditing them
 would bury the trail in bookkeeping (DECISIONS D16). `approval_requests` has no
 DELETE policy and a decided request cannot be re-decided.
 
+## Teams, saved views, and permissions
+
+### Teams replace the free-text field
+
+`memberships.team` (0002) was a string — a typo silently created a new team,
+and "see everything my team owns" had nothing to query. `teams` (0016) is a
+real table with a recursive `parent_team_id`, guarded against cycles by a
+trigger (small hierarchy, walked on every visibility check — worth a real
+guard, unlike `accounts.parent_id`'s comment deferring cycles to application
+code). `memberships.team` stays; `team_id` is additive, matching D13's
+non-destructive-transition pattern.
+
+```sql
+SELECT * FROM app.visible_team_ids();
+-- owner/admin: every team. manager: their team + descendants. member/viewer: just their own.
+```
+
+That is a read-only helper, not an RLS policy — see "Field- and row-level
+permissions" below for why.
+
+### Saved views
+
+Filters, sorts, columns, and board config as rows (`saved_views`, 0017), opaque
+JSONB for the same reason as `custom_fields` (D5): a frontend filter DSL
+outlives migration cadence. Visibility is `private` / `team` / `organization`,
+enforced by a policy that replaces `apply_tenant_rls`'s default rather than
+layering on top of it — a second permissive policy would just re-widen access
+back to everything.
+
+### Field- and row-level permissions
+
+Today's RLS is deliberately tenant-only (D2): any member reads any record, and
+only writes are gated by role. `0018` does not change that — every existing
+table's SELECT policy is untouched — it adds the data a tenant needs once
+"everyone sees everything" stops being good enough for one field or one
+record:
+
+- **`field_permissions`** + `app.redact_fields()` — strips keys hidden from a
+  role from a `custom_fields` blob. Real Postgres column-level security
+  (`REVOKE SELECT (col)`) needs a database role per application role, which
+  does not fit one pooled multi-tenant connection. The application must call
+  this before a record leaves the database; nothing enforces it automatically.
+- **`record_shares`** — a record made visible to a specific user or team beyond
+  the standing policy. This is groundwork, not enforcement: wiring it into
+  `accounts`/`contacts`/`leads`/`deals`/`service_jobs`'s SELECT policies would
+  be a behavioural change to every tenant's existing visibility, which is a
+  product decision, not a side effect of adding a table. See D24.
+
+`notifications` (0019) is the one table in this migration set that *does* get
+a narrower policy immediately, because "any colleague can read your inbox" has
+no legitimate reading — it is the case the general mechanism above exists to
+eventually generalise.
+
+## Automation platform primitives
+
+### API keys and webhooks
+
+`app.issue_api_key()` returns the secret exactly once; only its SHA-256 hash is
+ever stored (sha256, not a slow password hash — the key itself carries the
+entropy; a table dump, not a hash brute-force, is the threat model).
+`app.authenticate_api_key()` is `SECURITY DEFINER` because authentication
+happens before `app.current_org_id()` has anything to return — the one
+legitimate reason a caller needs to search across every tenant's keys.
+
+`webhook_subscriptions.signing_secret` is generated server-side, never
+supplied — same reasoning as a storage key (D15): a value whose whole purpose
+is proving authenticity cannot be chosen by the party being authenticated.
+Delivery (the outbound HTTP call) is not built; this is state and
+authorisation, a worker outside makes the call, same boundary as 0015.
+
+### Merge and dedup
+
+`app.merge_contacts()` / `app.merge_accounts()` repoint every live reference
+(deals, jobs, channels, attachments, tasks) to the survivor and soft-delete the
+loser. **History is not rewritten** — `activities` and `audit_log` keep the
+merged-away id, the same choice 0011 made for consent. `entity_merges` records
+a full snapshot of what was lost, which is what makes the survivor's complete
+timeline reconstructable across both ids.
+
+Scoped to contacts and accounts — the two entities CRMs actually merge — rather
+than a fully generic merge, which would mean discovering every FK into every
+table dynamically at execution time for entities nothing here merges.
+
+### Import batches
+
+`import_batch_id` on accounts/contacts/leads/deals plus
+`app.rollback_import_batch()`, which soft-deletes every row a batch created
+using the same `deleted_at` every other soft delete in this schema already
+respects.
+
+### FX provenance and the timeline label
+
+`fx_rates` records a rate, its source, and when it applied — immutable, a
+correction is a new row with a later `as_of`. It does not fetch rates; that
+needs a live rates API (see the top-level API-requirements note).
+
+`activities.entity_label` caches a record's display name at write time, the
+same move `deal_line_items` makes for price (0014): deletion becomes
+non-destructive to history. Best-effort, not FK-validated — the same volume
+trade-off D15 made for this table.
+
+## Email and calendar identity
+
+`connected_accounts` / `message_threads` / `messages` / `message_participants`
+/ `calendar_events` (0020) give a sync worker somewhere to write once one is
+connected. **Nothing here talks to Gmail, Microsoft Graph, or a mail server** —
+that needs OAuth and a live API connection.
+
+- `messages.provider_message_id` is the dedup key, unique per organization — a
+  message seen by two sync passes, or two connected mailboxes on one thread,
+  is one row.
+- `message_threads.message_count` / `last_message_at` are recomputed on every
+  message change, the same shape as `files.attachment_count` (D15) and for the
+  same reason: an increment/decrement pair drifts the first time a path forgets
+  it.
+- `connected_accounts.credential_ref` is an opaque pointer into a secrets
+  manager, never the OAuth token itself — CLAUDE.md §3's "no secrets in code or
+  prompts" applies to application data with a credential's blast radius too.
+
 ## Partitioning and maintenance
 
 `activities` and `audit_log` are RANGE-partitioned by month. These two grow with

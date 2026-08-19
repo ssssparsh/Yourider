@@ -134,6 +134,8 @@ export interface Account extends TenantScoped, Timestamped {
   readonly service_address: JsonObject;
   readonly owner_id: UserId | null;
   readonly parent_id: AccountId | null;
+  /** Added in 0019. Which bulk import created this row, if any. */
+  readonly import_batch_id: Id<'ImportBatch'> | null;
   readonly custom_fields: JsonObject;
   readonly tags: readonly string[];
   readonly created_by: UserId | null;
@@ -162,6 +164,8 @@ export interface Contact extends TenantScoped, Timestamped {
   readonly address: JsonObject;
   readonly social: JsonObject;
   readonly owner_id: UserId | null;
+  /** Added in 0019. Which bulk import created this row, if any. */
+  readonly import_batch_id: Id<'ImportBatch'> | null;
   readonly custom_fields: JsonObject;
   readonly tags: readonly string[];
   readonly created_by: UserId | null;
@@ -250,6 +254,8 @@ export interface Lead extends TenantScoped, Timestamped {
   readonly disqualified_at: Date | null;
   readonly disqualified_reason: string | null;
   readonly last_activity_at: Date | null;
+  /** Added in 0019. Which bulk import created this row, if any. */
+  readonly import_batch_id: Id<'ImportBatch'> | null;
   readonly custom_fields: JsonObject;
   readonly tags: readonly string[];
   readonly created_by: UserId | null;
@@ -264,9 +270,16 @@ export interface Deal extends TenantScoped, Timestamped {
   readonly stage_id: StageId;
   readonly board_position: Numeric;
   readonly stage_entered_at: Date;
+  /**
+   * Derived from `deal_line_items` once the deal has any (0014) — the database
+   * refuses a hand-write in that case. A deal with no line items keeps this as
+   * a manual figure.
+   */
   readonly amount: Numeric;
   readonly currency: CurrencyCode;
   readonly fx_rate: Numeric;
+  /** Added in 0019. Which fx_rates row this deal's rate was read from, if any. */
+  readonly fx_rate_source_id: Id<'FxRate'> | null;
   /** Generated: amount * fx_rate. Never written. */
   readonly base_amount: Numeric;
   readonly probability: Numeric | null;
@@ -278,6 +291,8 @@ export interface Deal extends TenantScoped, Timestamped {
   readonly owner_id: UserId | null;
   readonly source_lead_id: LeadId | null;
   readonly last_activity_at: Date | null;
+  /** Added in 0019. Which bulk import created this row, if any. */
+  readonly import_batch_id: Id<'ImportBatch'> | null;
   readonly custom_fields: JsonObject;
   readonly tags: readonly string[];
   readonly created_by: UserId | null;
@@ -403,6 +418,14 @@ export interface Activity extends TenantScoped {
   readonly body: string | null;
   readonly entity_type: CrmEntity;
   readonly entity_id: string;
+  /**
+   * Added in 0019. The entity's display name, cached at write time so the
+   * timeline still reads sensibly after the record it points at is gone —
+   * "call with Dana Kohli" stays legible even once Dana is deleted. Best-effort
+   * and not authoritative: see DECISIONS.md D15's volume trade-off, which
+   * applies here for the same reason.
+   */
+  readonly entity_label: string | null;
   /** Denormalised links so an account timeline needs no recursive walk. */
   readonly account_id: AccountId | null;
   readonly contact_id: ContactId | null;
