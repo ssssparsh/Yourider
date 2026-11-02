@@ -1,0 +1,58 @@
+{
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true,
+    "superpowers@superpowers-marketplace": true,
+    "headroom@headroom-marketplace": true,
+    "ponytail@ponytail": true,
+    "impeccable@impeccable": true,
+    "ecc@ecc": false,
+    "marketing-skills@claude-code-skills": true,
+    "business-growth-skills@claude-code-skills": true,
+    "finance-skills@claude-code-skills": true,
+    "commercial-skills@claude-code-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "headroom-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "headroomlabs-ai/headroom"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
+    },
+    "ecc": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/everything-claude-code"
+      }
+    },
+    "claude-code-skills": {
+      "source": {
+        "source": "github",
+        "repo": "alirezarezvani/claude-skills"
+      }
+    }
+  }
+}
