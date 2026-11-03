@@ -18,3 +18,8 @@ Append only. Newest at the bottom.
 - Store "Cradlebaby" connected through the claude.ai Shopify connector (not a custom Dev Dashboard app). Read-only audit done, findings in `LAUNCH_PLAN.md`.
 - The connector app has wide write scopes. Owner approval rules in `CLAUDE.md` section 3 still apply to every write.
 - Niche direction: baby and kids, matching the store name. Not final until the Meta test.
+
+## 2026-11-03: One window for store and Meta ads
+
+- Use Meta's official "Facebook & Instagram" sales channel inside Shopify admin to run Meta ads from the store admin. No custom build.
+- Claude side: one claude.ai Project with the Shopify connector. A Meta connector is added later only if Shopify's own marketing data is not enough.
