@@ -12,3 +12,9 @@ Append only. Newest at the bottom.
 - Emil Kowalski skills and the Agent Reach skill vendored into `.claude/skills/` (both MIT).
 - Headroom, Agent Reach, and crewAI are Python CLIs. Cloud containers are temporary, so `.claude/hooks/setup-tools.sh` reinstalls them. It is not yet registered as a SessionStart hook in `.claude/settings.json`: that needs the owner's OK.
 - No Shopify API connection yet. All store changes stay owner-approved.
+
+## 2026-11-03: Store connected and audited
+
+- Store "Cradlebaby" connected through the claude.ai Shopify connector (not a custom Dev Dashboard app). Read-only audit done, findings in `LAUNCH_PLAN.md`.
+- The connector app has wide write scopes. Owner approval rules in `CLAUDE.md` section 3 still apply to every write.
+- Niche direction: baby and kids, matching the store name. Not final until the Meta test.
