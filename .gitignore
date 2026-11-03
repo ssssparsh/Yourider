@@ -1,0 +1,3 @@
+# Third-party media tooling installed by scripts/setup-media-tools.sh
+/tools/
+.env
