@@ -183,16 +183,21 @@ def main() -> None:
     provider, say = pick(spec)
     print(f"voice provider: {provider}")
     alias = {norm(k): norm(v) for k, v in spec.get("heard_as", {}).items()}
+    # words speech recognition does not know (names, loanwords): "vocabulary": ["rangoli", "Diwali"] in script.json.
+    # Given only to lines that contain them: a prompt on other lines can make Whisper repeat the line.
+    vocab = spec.get("vocabulary", [])
     from faster_whisper import WhisperModel
     model = WhisperModel("base.en", device="cpu", compute_type="int8")
 
     takes: dict[str, tuple] = {}
     for ln in lines:
         wav, said, best = build / "vo" / f"{ln['id']}.wav", [norm(x) for x in ln["say"].split()], None
+        hits = [v for v in vocab if norm(v) in said]
+        prompt = ", ".join(hits) + "." if hits else None
         for k in range(TAKES[provider]):
             tmp = wav.with_suffix(f".take{k}.wav")
             dur, timed = say(ln["say"], tmp)
-            segs, _ = model.transcribe(str(tmp), word_timestamps=True, language="en")
+            segs, _ = model.transcribe(str(tmp), word_timestamps=True, language="en", initial_prompt=prompt)
             heard = [(alias.get(norm(x.word), norm(x.word)), x.start, x.end) for s in segs for x in s.words]
             ratio = difflib.SequenceMatcher(a=said, b=[h[0] for h in heard], autojunk=False).ratio()
             if best is None or ratio > best[0]:

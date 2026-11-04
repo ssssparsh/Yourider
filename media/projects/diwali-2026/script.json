@@ -1,0 +1,134 @@
+{
+ "title": "Diwali 2026 greeting: one lamp lights the next",
+ "duration": 20.0,
+ "format": {
+  "width": 1080,
+  "height": 1350,
+  "fps": 30
+ },
+ "voice": {
+  "provider": "kokoro",
+  "kokoro": {
+   "voice": "am_michael",
+   "speed": 0.95
+  }
+ },
+ "vocabulary": [
+  "Diwali",
+  "rangoli",
+  "Yourider"
+ ],
+ "heard_as": {
+  "writer": "rider",
+  "ryder": "rider",
+  "rangoli": "rangoli",
+  "diwali": "diwali",
+  "divali": "diwali",
+  "dewali": "diwali"
+ },
+ "lines": [
+  {
+   "id": "L1",
+   "start": 0.6,
+   "say": "Diwali comes on the darkest night of the month.",
+   "show": "Diwali comes on the darkest night of the month."
+  },
+  {
+   "id": "L2",
+   "start": 4.6,
+   "say": "We draw a rangoli at the door, and light one lamp.",
+   "show": "We draw a rangoli at the door, and light one lamp."
+  },
+  {
+   "id": "L3",
+   "start": 8.6,
+   "say": "Then the next one, from the first.",
+   "show": "Then the next one, from the first."
+  },
+  {
+   "id": "L4",
+   "start": 11.4,
+   "say": "A flame gives its light, and loses nothing.",
+   "show": "A flame gives its light, and loses nothing."
+  },
+  {
+   "id": "L5",
+   "start": 15.4,
+   "say": "Happy Diwali, from all of us at Your Rider.",
+   "show": "Happy Diwali, from all of us at Yourider.",
+   "plate": false
+  }
+ ],
+ "on_screen": {
+  "end_headline": "Happy Diwali",
+  "end_sign": "from all of us at Yourider"
+ },
+ "assets": {},
+ "sfx": [
+  {
+   "file": "drone",
+   "t": 0.0,
+   "gain": 0.55,
+   "note": "tanpura-like drone under the whole film"
+  },
+  {
+   "file": "match",
+   "word": "lamp",
+   "offset": -0.45,
+   "gain": 0.6,
+   "note": "match struck just before 'lamp'"
+  },
+  {
+   "file": "catch",
+   "word": "lamp",
+   "offset": 0.05,
+   "gain": 0.5,
+   "note": "lamp 1 catches"
+  },
+  {
+   "file": "catch",
+   "word": "next",
+   "offset": 0.0,
+   "gain": 0.42,
+   "note": "lamp 2 lit from lamp 1"
+  },
+  {
+   "file": "catch-soft",
+   "word": "first",
+   "offset": 0.15,
+   "gain": 0.32,
+   "note": "lamp 3"
+  },
+  {
+   "file": "catch-soft",
+   "word": "first",
+   "offset": 0.5,
+   "gain": 0.26,
+   "note": "lamp 4"
+  },
+  {
+   "file": "catch-soft",
+   "word": "first",
+   "offset": 0.85,
+   "gain": 0.22,
+   "note": "lamp 5"
+  },
+  {
+   "file": "catch-soft",
+   "word": "first",
+   "offset": 1.2,
+   "gain": 0.18,
+   "note": "lamp 6"
+  },
+  {
+   "file": "bell",
+   "word": "Happy",
+   "offset": 0.35,
+   "gain": 0.45,
+   "note": "one small bell on the greeting"
+  }
+ ],
+ "_voice_free_beat": "14.4-15.4 s: no voice; the drone and flames continue (a dead-silent gap would fail check.py's dead-air check and break the warmth)",
+ "sfx_dir": "media/.build/diwali-2026/sfx (made by sounds.py, synthesised, see rights.md)",
+ "room_tone": false
+}
