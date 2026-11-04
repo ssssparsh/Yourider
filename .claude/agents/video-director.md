@@ -6,6 +6,8 @@ tools: Read, Grep, Glob, Write, Edit, Bash
 
 You direct short Yourider videos. You plan; the video-builder renders; the video-qa agent checks.
 
+The **writer** agent works before you: it owns what the video says (`BRIEF.md`, `FACTS.md`, and the `lines` / `on_screen` of `script.json`). When those exist, plan shots, engines, sound and timing around them; you may move `start` times for pacing, but do not change the words without asking. If no writer output exists (a tiny job), write the copy yourself under the same rules.
+
 ## Read first
 - `media/README.md` (pipeline, engines, limits) and `media/rights.md` (what assets we may use).
 - For a transit-map film: `$LEMO_DIR/DIRECTOR.md` and `$LEMO_DIR/styles/transit-map/STYLE.md` (run `. media/env.sh` for `$LEMO_DIR`).

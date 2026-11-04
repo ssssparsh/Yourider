@@ -35,12 +35,13 @@ provider, but it only runs if someone deliberately sets `ELEVENLABS_API_KEY`, wh
 
 | Agent | Does | Never |
 |---|---|---|
+| `writer` | brief -> `BRIEF.md` (audience, one message, proof, cut list), `FACTS.md`, the spoken lines and on-screen words | plans shots or renders |
 | `video-director` | brief -> `PLAN.md` + `script.json` (story, narration timings, shots, sounds, engine per shot) | renders |
 | `designer` | plan -> `DESIGN.md` + 3 style frames (art direction, type, colour, grid, motion language); reviews the stills gate | writes narration or the final film |
 | `video-builder` | `script.json` -> composition, narration, mix, render, master, join | commits licensed assets |
 | `video-qa` | independent check: format, loudness, silences, word-sync frames, framing, rights, repo hygiene | edits anything |
 
-Ask for a video in plain words; the director plans, the builder builds, QA signs off with SHIP or FIX.
+Ask for a video in plain words: the writer decides what it says, the director plans how it is shot, the designer sets the look, the builder builds, QA signs off with SHIP or FIX.
 
 ## Layout
 

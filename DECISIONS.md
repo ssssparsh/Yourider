@@ -39,3 +39,6 @@
 ## 2026-11-04 — Gates tested adversarially, then fixed
 - Tested plancheck/motionlint against deliberate slop and normal copy. Before: 6 classic slop lines passed ("isn't just a tool", "No chaos. Just deals.", "built for X, built for Y, built for Z"), a normal sentence failed on "actually"/"landscape", and motionlint missed 3 of 4 scale-from-zero pops (gsap.from, single quotes, 0.0).
 - Now: those patterns FAIL; ambiguous words and vague adjectives (powerful, intuitive, easy) WARN instead of FAIL; SaaS filler (streamline, leverage, robust, "deserves better") FAILs; motionlint reads any timeline object and any quote style. Remotion and Lemo timelines are still not linted.
+
+## 2026-11-04 — Writer agent
+- Added `writer` before `video-director`: it owns content (audience, the one message, proof in FACTS.md, story shape, hook, exact spoken and on-screen words, cut list) and writes BRIEF.md. The director now plans shots, engines, sound and pacing around the writer's words and does not rewrite them. Team: writer -> director -> designer -> builder -> QA. For tiny jobs the director may still write copy itself.
