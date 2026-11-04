@@ -26,6 +26,13 @@ Engines:
 
 Voice: free Kokoro (default `am_michael`), Piper as fallback. No paid voice services (decision 2026-11-04); never set up ElevenLabs. `voice.py` prints the provider and timing source it used; report them.
 
+## Gates in every build.sh (in this order; the build stops on the first FAIL)
+1. `python3 media/pipeline/plancheck.py <project>` (copy and plan).
+2. After gen.py: `python3 media/pipeline/motionlint.py <build>/hf/index.html --exceptions <project>/script.json` (Emil Kowalski's motion standards: no scale-from-zero, no linear easing, transform/opacity only; ease-in only for slams).
+3. Stills gate: render frames at every beat's key moment and frame strips across every transition; look at them before the full render.
+4. `check.py` on the final file.
+Motion craft reference: `~/.claude/skills/review-animations/SKILL.md` and its STANDARDS.md (Emil Kowalski).
+
 ## Rules
 - Each project has a `build.sh` that runs end to end and ends with `check.py`. Copy the closest existing project and change only what the plan needs.
 - Timing comes from words.json, never from guessed seconds: anything that must land on a spoken word (a stamp, a station, a sound) is computed from that word's time, so a different voice take cannot break sync.

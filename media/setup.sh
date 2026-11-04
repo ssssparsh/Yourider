@@ -5,6 +5,7 @@
 #                                     engine, gbro-collage-info rules + SFX, HyperFrames, GSAP, Inter, Schibsted Grotesk
 #   media/setup.sh --with-shotcraft   video-shotcraft (124 shot recipes, aesthetic rules) + its Remotion template
 #   media/setup.sh --with-taste       taste-skill (art direction, anti-generic house style, look-and-fix loop)
+#   media/setup.sh --with-design      anti-slop skills: Emil Kowalski (motion), Impeccable (visual craft), Humanizer (writing)
 #   media/setup.sh --with-blender     headless Blender (bpy 5.2, Python 3.13) for 3D shots, Cycles on CPU
 #   media/setup.sh --with-openmontage OpenMontage (agentic explainer pipelines, Remotion)
 #   media/setup.sh --with-earshot     Earshot + real-sound skill (CPU torch, ~1 GB)
@@ -24,9 +25,9 @@ SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 declare -A W=()
 for arg in "$@"; do
   case "$arg" in
-    --with-openmontage|--with-earshot|--with-animation|--with-onetake|--with-graphify|--with-ytdlp|--with-shotcraft|--with-taste|--with-blender) W[${arg#--with-}]=1 ;;
-    --all) for k in openmontage earshot animation onetake graphify ytdlp shotcraft taste blender; do W[$k]=1; done ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    --with-openmontage|--with-earshot|--with-animation|--with-onetake|--with-graphify|--with-ytdlp|--with-shotcraft|--with-taste|--with-blender|--with-design) W[${arg#--with-}]=1 ;;
+    --all) for k in openmontage earshot animation onetake graphify ytdlp shotcraft taste blender design; do W[$k]=1; done ;;
+    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -112,6 +113,15 @@ if on shotcraft; then
   fetch Vincentwei1021/video-shotcraft 1266a3ec4831289c4d893d42dd5102723658039a "$SC"
   (cd "$SC/template" && npm ci --no-audit --no-fund >/dev/null)              # Remotion 4.0.484 for its demos
   mkdir -p "$SKILLS_DIR"; ln -sfn "$SC" "$SKILLS_DIR/video-shotcraft"
+fi
+if on design; then   # anti-slop design skills: motion (Emil Kowalski), visual craft (Impeccable), writing (Humanizer)
+  fetch emilkowalski/skills f1090bec277140d02ed202440185ad9d02ac1490 "$MEDIA_TOOLS/emilkowalski-skills"
+  fetch pbakaus/impeccable 695cea5c6d1cbd420fc331375c7ef126a774e5f7 "$MEDIA_TOOLS/impeccable"
+  fetch blader/humanizer 0ef9fe5bc3572734fd3ae6c448fe00a30cd5dcf0 "$MEDIA_TOOLS/humanizer"
+  mkdir -p "$SKILLS_DIR"
+  for s in review-animations animation-vocabulary improve-animations; do ln -sfn "$MEDIA_TOOLS/emilkowalski-skills/skills/$s" "$SKILLS_DIR/$s"; done
+  ln -sfn "$MEDIA_TOOLS/impeccable/plugin/skills/impeccable" "$SKILLS_DIR/impeccable"
+  ln -sfn "$MEDIA_TOOLS/humanizer" "$SKILLS_DIR/humanizer"
 fi
 if on taste; then
   TS="$MEDIA_TOOLS/taste-skill"

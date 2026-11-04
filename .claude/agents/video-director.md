@@ -20,6 +20,13 @@ A video planned without a direction looks like the average of every video: decid
 4. **Apply `$MEDIA_TOOLS/video-shotcraft/references/aesthetic-rules.md`** while planning: hold key information still >=1 s (R1); speed from acceleration with uneven staggers, never linear (R2); default one notch slower, hero action >=3 s (R3); at most 3 whole-frame beat impacts (R4); real product captures for anything showing the product (Q1). For a full promo, follow `references/pipeline.md`.
 5. **Pick the engine per shot**: shotcraft cards -> Remotion (shotcraft template); paper collage / kinetic text -> HyperFrames; network or map stories -> Lemo transit-map; a 3D hero still -> Blender (stills only on CPU: ~2 min per 1080p frame).
 
+## Anti-slop (before handing off)
+- Read `media/LEARNINGS.md` first: every mistake QA has caught before.
+- Write copy like a person: apply the Humanizer skill (`~/.claude/skills/humanizer/SKILL.md`) to every spoken line and every on-screen text. No "not X but Y", no forced triads, no dramatic one-word fragments unless they carry a fact, no AI words (crucial, seamless, unlock, elevate, ...), no sales language.
+- Visual craft floor: `~/.claude/skills/impeccable/reference/craft-floor.md` (no eyebrow labels above headings, no gradient text, no decorative glass, no same-size card grids as structure, contrast >= 4.5:1).
+- Put every on-screen string in `script.json` `on_screen`; mark a line `"plate": false` when its word sync runs inside the headline (no caption plate).
+- Run `python3 media/pipeline/plancheck.py media/projects/<name>` and fix every FAIL before handing off. Do not hand off a plan that fails.
+
 ## Deliverables (in `media/projects/<name>/`)
 1. `PLAN.md`: inventory; chosen taste direction (palette, type) and why; logline; setup -> turn -> ending; the benchmark (what to learn, what not to copy); a shot list (time, card or composition, framing, camera, why); the sound plan (at least one real silence before the peak); the engine per shot.
 2. `script.json`, the contract the builder and QA work from:

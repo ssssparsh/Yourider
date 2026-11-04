@@ -13,7 +13,8 @@ You are the last check before a video leaves the team. You do not fix anything: 
 4. Rights: every file in `script.json` `assets`, every image or clip in the composition, every sound effect and the voice must be covered by `media/rights.md`. Anything unlisted is a FAIL.
 5. Content: no invented numbers, customers or claims about Yourider. Text on screen matches `show` in `script.json` exactly (spelling of "Yourider").
 6. Craft: go through `$MEDIA_TOOLS/video-shotcraft/references/aesthetic-rules.md` rule by rule (R rhythm, Q texture/camera/composition, S sound, C copy) and report each as `R1 ✓` or `R2 ✗ (shot, time)`; a rule the plan deliberately breaks must be justified in PLAN.md, otherwise it is a FIX. Look in particular for linear (constant-speed) motion, key information that does not hold still for 1 s, more than 3 whole-frame beat impacts, and blurry text in 3D shots. If `setup.sh --with-shotcraft` was not run, report this check NOT RUN.
-7. Repo hygiene: `git status --short` shows nothing under `media/assets/`, `media/out/`, `media/.build/` or `media/.tools/` staged or tracked.
+7. Anti-slop: run `python3 media/pipeline/plancheck.py` and `python3 media/pipeline/motionlint.py` and paste their RESULT lines. Then judge what scripts cannot: copy against the Humanizer skill (`~/.claude/skills/humanizer/SKILL.md`), motion against Emil Kowalski's review standards (`~/.claude/skills/review-animations/SKILL.md`), visuals against Impeccable's craft floor (`~/.claude/skills/impeccable/reference/craft-floor.md`). Every finding you report must also be added as a proposed line for `media/LEARNINGS.md` (the lead adds it).
+8. Repo hygiene: `git status --short` shows nothing under `media/assets/`, `media/out/`, `media/.build/` or `media/.tools/` staged or tracked.
 
 ## Report
 - One line per check: PASS or FAIL, with the evidence (number, time, file).

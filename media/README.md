@@ -22,6 +22,15 @@ provider, but it only runs if someone deliberately sets `ELEVENLABS_API_KEY`, wh
 - **video-shotcraft** gives 124 shot recipe cards with tuned Remotion demos, written aesthetic rules (rhythm, texture, sound, copy) and a final review; the director picks cards, the builder adapts the exact demo, QA checks every rule.
 - **Blender** renders real 3D stills (about 2 min per 1080p frame on CPU here); animate them with camera moves in the other engines.
 
+## Anti-slop gates (every build runs them; the build stops on FAIL)
+| Gate | When | Checks |
+|---|---|---|
+| `pipeline/plancheck.py` | before any build | copy (Humanizer patterns: AI words, sales language, "not X but Y", dashes, fragments), headline repeating a caption, numbers not in FACTS.md, rules learned in `LEARNINGS.md`, timing |
+| `pipeline/motionlint.py` | after the composition is generated | Emil Kowalski's motion standards: no scale-from-zero, no linear easing, transform/opacity only, ease-in only for slams |
+| stills gate | before the full render | frames at every beat and across every transition, looked at by the builder |
+| `pipeline/check.py` + QA agent | after the render | technical checks, then Humanizer / Emil Kowalski / Impeccable / shotcraft judgment |
+`LEARNINGS.md` records every mistake QA has caught; `setup.sh --with-design` installs the three skills.
+
 ## The team (Claude Code agents in `.claude/agents/`)
 
 | Agent | Does | Never |

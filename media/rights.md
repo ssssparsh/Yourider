@@ -46,6 +46,7 @@ what we checked, it is not legal advice.
 | taste-skill @ 12af471 (art direction) | MIT | — |
 | Blender / bpy 5.2.3 | GPL-3.0 (the program); renders are ours | stills only on this CPU machine |
 | kokoro-onnx 0.6.1 | MIT (project repository; package metadata does not state it) | — |
+| emilkowalski/skills @ f1090be, pbakaus/impeccable @ 695cea5, blader/humanizer @ 0ef9fe5 (`--with-design`) | MIT, Apache-2.0, MIT | review guidance only; nothing from them ships in a video |
 | Piper TTS, faster-whisper, ffmpeg | open source tools; their output (our audio, timings) is ours | — |
 
 ## Not allowed

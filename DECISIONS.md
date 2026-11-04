@@ -26,3 +26,7 @@
 
 ## 2026-11-04 — No paid voice services
 - The user decided against ElevenLabs because it is paid. Kokoro (free, Apache-2.0) is the voice; Piper is the fallback. The optional ElevenLabs code in `voice.py` stays dormant (it runs only if `ELEVENLABS_API_KEY` is set) and the agents are told not to set it up.
+
+## 2026-11-04 — Anti-slop gates
+- User asked for no AI slop. Added two automatic gates: `plancheck.py` (Humanizer writing patterns, headline/caption repeats, facts, learned rules) before any build, and `motionlint.py` (Emil Kowalski's motion standards) after the composition is generated. Impeccable's craft floor and taste-skill guide the director and QA. `LEARNINGS.md` turns every QA finding into a rule.
+- Tested on our own work: plancheck finds the six headline repeats QA found by hand in the paused 40 s video; motionlint finds scale-from-zero entrances in both 4:5 videos. Ease-in on entrances is a warning, not a failure, because slams into an impact accelerate on purpose.
