@@ -14,7 +14,16 @@ Only these facts may appear in the video. Anything else must be cut or confirmed
 - Built a team of three AI agents: a director (plans the story, script and shots), a builder (renders), a QA reviewer (checks every frame and rule, never edits).
 - Every caption word is timed to the voice by Whisper; on-screen events land on the spoken word.
 - The 30-second LinkedIn intro: 55 spoken words, 1080x1350, built end to end by one script in about 2 minutes (126 s measured).
-- The first QA review of that intro found 8 problems (overlapping captions, brand not named until 10.6 s, empty first frame, duplicated headline and caption, three transition overlaps, a row held under 1 s, text too small for a phone). The builder fixed all 8; the second review said SHIP.
+- The first QA review of that intro returned FIX with exactly 8 ranked fixes (wording as short labels):
+  1. Two captions overlapping (at 15 s)
+  2. Brand not named until 10.6 s, empty first frame
+  3. Headline and caption repeating the same sentence
+  4. Elements overlapping during transitions
+  5. Key row (Leads / Pipelines / Deals) held under 1 s
+  6. Text too small for a phone
+  7. A card hopping along an empty pipeline
+  8. Rule breaks not documented (quiet ending, silent typing)
+  The builder fixed all 8; the second review said SHIP. The QA contact sheet in the evidence folder is from the fixed (SHIP) version.
 - QA also caught an unsupported product claim ("Automated") on a map label in the "One Map" film; it was removed.
 - Loudness is mastered to -14 LUFS for every video.
 - Real stills from those videos are in `media/.build/ai-editing-story/evidence/` (all our own renders; the collage frame contains the licensed Adobe Stock cut-out listed in rights.md).
