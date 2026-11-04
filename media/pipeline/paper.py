@@ -1,7 +1,11 @@
 """Paper materials for collage shots: a grainy coloured field and torn-edge cards. Deterministic (fixed seeds).
 
-usage: $MEDIA_PY media/pipeline/paper.py <out_dir> [--field "#B8432F"]
-Writes field.png (1920x1080), card.png, mapcard.png, brand.png.
+usage: $MEDIA_PY media/pipeline/paper.py <out_dir> [--field "#B8432F"] [--size 1920x1080]
+                                         [--extra-field name=#rrggbb ...] [--piece name:WxH:#rrggbb[:jag[:keyline]] ...]
+Writes field.png (--size, default 1920x1080) and, without --piece, the default card.png, mapcard.png, brand.png.
+--extra-field writes more grain fields at --size (e.g. a colour page); --piece replaces the default cards with
+your own torn-edge pieces (jag = edge roughness in px, default 7; keyline = width in px of a cream die-cut edge, default 0).
+Every piece image has a 20 px transparent margin around its WxH body.
 """
 import argparse
 import random
@@ -22,7 +26,7 @@ def grain(w: int, h: int, rgb: tuple[int, int, int], amt: float) -> Image.Image:
     return Image.fromarray(base.clip(0, 255).astype("uint8"))
 
 
-def torn(w: int, h: int, rgb: tuple[int, int, int], out: Path, jag: float = 7) -> None:
+def torn(w: int, h: int, rgb: tuple[int, int, int], out: Path, jag: float = 7, keyline: int = 0) -> None:
     pts = []
     for side in range(4):
         for i in range(60):
@@ -35,19 +39,43 @@ def torn(w: int, h: int, rgb: tuple[int, int, int], out: Path, jag: float = 7) -
     ImageDraw.Draw(mask).polygon([(x + pad, y + pad) for x, y in pts], fill=255)
     tex = grain(w + 2 * pad, h + 2 * pad, rgb, .05).convert("RGBA")
     tex.putalpha(mask.filter(ImageFilter.GaussianBlur(.7)))
+    if keyline:  # cream die-cut edge (same cream as halftone.py's keyline) around the piece
+        key = mask.filter(ImageFilter.MaxFilter(2 * keyline + 1)).filter(ImageFilter.GaussianBlur(.7))
+        edge = Image.new("RGBA", mask.size, KEYLINE)
+        edge.putalpha(key)
+        edge.alpha_composite(tex)
+        tex = edge
     tex.save(out)
+
+
+KEYLINE = (252, 248, 237, 255)
+
+
+def hexrgb(s: str) -> tuple[int, int, int]:
+    return tuple(int(s[i:i + 2], 16) for i in (1, 3, 5))
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("out_dir")
     ap.add_argument("--field", default="#B8432F")
+    ap.add_argument("--size", default="1920x1080")
+    ap.add_argument("--extra-field", action="append", default=[], metavar="NAME=#RRGGBB")
+    ap.add_argument("--piece", action="append", default=[], metavar="NAME:WxH:#RRGGBB[:JAG[:KEYLINE]]")
     a = ap.parse_args()
     d = Path(a.out_dir)
     d.mkdir(parents=True, exist_ok=True)
-    rgb = tuple(int(a.field[i:i + 2], 16) for i in (1, 3, 5))
-    grain(1920, 1080, rgb, .10).save(d / "field.png")
-    torn(1180, 760, (246, 241, 228), d / "card.png")
-    torn(560, 300, (234, 225, 204), d / "mapcard.png", 5)
-    torn(470, 150, (38, 36, 31), d / "brand.png", 5)
+    W, H = map(int, a.size.split("x"))
+    grain(W, H, hexrgb(a.field), .10).save(d / "field.png")
+    if not a.piece:
+        torn(1180, 760, (246, 241, 228), d / "card.png")
+        torn(560, 300, (234, 225, 204), d / "mapcard.png", 5)
+        torn(470, 150, (38, 36, 31), d / "brand.png", 5)
+    for spec in a.piece:
+        name, size, col, *rest = spec.split(":")
+        pw, ph = map(int, size.split("x"))
+        torn(pw, ph, hexrgb(col), d / f"{name}.png", float(rest[0]) if rest else 7, int(rest[1]) if len(rest) > 1 else 0)
+    for spec in a.extra_field:
+        name, col = spec.split("=")
+        grain(W, H, hexrgb(col), .10).save(d / f"{name}.png")
     print(f"paper materials in {d}")
