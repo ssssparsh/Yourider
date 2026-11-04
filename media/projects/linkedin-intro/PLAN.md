@@ -178,3 +178,30 @@ Builder inputs: `halftone.py` on the handshake cut-out; `paper.py` for the field
 3. **Music bed:** follow-up (section 8).
 4. **Copy sign-off:** "AI agents you work with in chat" and "piece by piece" are the plan's wording of the brief's
    facts; the user may want to approve them before a public post.
+
+## 11. Deliberate rule breaks
+
+- **Q8 (energy at the close):** the film ends quietly: a small yellow square, the wordmark and a 48 px sub-line on the
+  bottle-green page, then 3 s of held stillness with room tone only. That is on purpose for a pre-launch product: there
+  is no launch, offer or URL to shout about, and a loud end card would claim more than we have. The film's energy peak
+  is the S4 riso slam on "Yourider" (the only whole-frame impact); the lockup is the quiet signature after it.
+
+## 12. Build revisions after QA (2026-11-04)
+
+What the build does where it differs from the shot list above (all times still computed from `words.json`):
+- Title-safe: headline axis at 112 px (not 96), bar 864 px wide, headlines auto-fit to the 80% measure; captions sit
+  in y 1030-1200 and information stays at y <= 1010.
+- Frame 0: the S1 headline is set from frame 0 (cover frame) and a small paper-coloured "Yourider" sits in the
+  masthead; the hook motion is the card deal on "lead".
+- S1, S3, S7 carry no caption plate: the headline repeats the voice, so the word sync (yellow block) runs inside it.
+  S2, S4, S5, S6 keep the plate. Caption pages never overlap (asserted in `gen.py`).
+- S2: the card drops straight down, then slides along the drawn edge; the pen starts on "rides" with the card's own
+  40 f; segments and the Lead/Deal labels print at closure; the hops land on `by+0.12` and `by+0.57`, after the
+  segments (asserted). Riding card label renders at ~41 px.
+- S4: tag landings alternate pop-land / pop-soft / pop-land. The full tag row holds >= 1 s.
+- S5: the yellow sheet lands from "top" (whoosh moved with it); slips dealt from `top+0.45` with 0.30/0.18/0.10 s
+  intervals; typing at 2 f/char from `top+1.5`, with soft alternating click/tick keystrokes every 4th character at
+  stepped gain (0.20 -> 0.09); typed line held >= 1 s.
+- S6: marker stroke at `now+0.25`, the headline settling 6 frames before it.
+- S7: page inverts at 22.5 s; the headline rises after the panel finishes shrinking and clears (with the panel)
+  before the yellow block grows at 25.8 s. Lockup sub-line 48 px.

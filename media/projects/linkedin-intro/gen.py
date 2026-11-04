@@ -80,15 +80,18 @@ lstart = lambda lid: LINE[lid]["start"]
 lend = lambda lid: LINE[lid]["start"] + LINE[lid]["dur"]
 
 # ---------------------------------------------------------------- the beat sheet (all seconds derive from words / cues)
-H1_IN = 0.10
+H1_IN = None                            # S1 headline is set on frame 0 (LinkedIn may use frame 0 as the cover)
 LEAD = wt("lead")                       # S1 card lands
 T2 = cue("S2 masthead lifts out")       # transition
 H2_IN = lstart("L2")
-PEN0 = wt("pipeline") - .05             # S2 pen starts
-PEN_F = 48
+PEN0 = wt("rides") - .05                # S2 pen starts on "rides"
+PEN_F = 40                              # the card's tuned 40 f (48 would print the segments after "stage by")
 PEN1 = PEN0 + PEN_F * F                 # outline closes
-HOP1 = wt("stage")
+SEG_D = [0, 2, 3, 4]                    # segments print in, uneven, frames after closure + 2
+SEGS_DONE = PEN1 + 2 * F + SEG_D[-1] * F
+HOP1 = wt("by") + .12                   # hops start only after every segment is printed
 HOP2 = HOP1 + .45
+assert HOP1 - 3 * F >= SEGS_DONE, f"S2 hop at {HOP1:.2f}s starts before the segments are printed ({SEGS_DONE:.2f}s)"
 H3_IN = lstart("L3") - .10
 HARD = wt("hard")                       # S3 nudge
 YR = wt("Yourider")                     # S4 slam lands
@@ -99,14 +102,15 @@ SNAP = YR + 44 * F                      # plates snap into register (= Yourider+
 CRM = wt("CRM")
 TAGS = [("Leads", wt("leads")), ("Pipelines", wt("pipelines")), ("Deals", wt("deals"))]
 T5 = cue("S5 yellow sheet pushes up")
-TOP = wt("top")                         # first slip dealt on "on top"
-DEAL_GAPS = [.36, .22, .12]             # hard-accelerating deal (plan)
-DEALS = [TOP + sum(DEAL_GAPS[:k]) for k in range(4)]
+TOP = wt("top")                         # the yellow sheet lands on "top" (holds the tag row >= 1 s first)
+DEAL_GAPS = [.30, .18, .10]             # hard-accelerating deal
+DEALS = [TOP + .45 + sum(DEAL_GAPS[:k]) for k in range(4)]
 FLIGHT, SETTLE = 8 * F, 4 * F
 AGENTS = wt("agents")
 TYPED = "AI agents, in chat."
-CHAR_F = 2.5
-TYPE0 = AGENTS + .20
+CHAR_F = 2.0                            # the card's 2 f/char, so the finished line holds >= 1 s
+TYPE0 = TOP + 1.5                       # after the paper slip has landed and settled
+KEYS = list(range(0, len(TYPED) - 2, 4))  # soft keystroke sound every 4th character
 TYPE1 = TYPE0 + len(TYPED) * CHAR_F * F
 CURSOR_OFF = TYPE1 + 20 * F             # solid, blinks twice (4 f half period), removed
 T6 = cue("S6 yellow sheet pulled away")
@@ -116,12 +120,16 @@ MARK0 = wt("now") + .25                 # marker stroke under "now"
 MARK_F = 12
 H6_IN = MARK0 - 6 * F - 1.01            # headline settles 6 frames before the stroke
 T7 = cue("S7 page inverts to bottle green")
-H7_IN = lstart("L7") + .05
 T8 = cue("S8 yellow block collapses")
+PANEL_SHRINK = .35
+H7_IN = T7 + .1 + PANEL_SHRINK + .05     # headline rises once the panel has finished shrinking
+H7_OUT = T8 - .42                       # cleared before the yellow block grows
 BRAKE = cue("S8 lockup brake, square settles")
 SUB_IN = cue("S8 sub-line appears") - .05
 
 assert H6_IN >= T6 - .15, f"S6 headline would start at {H6_IN:.2f}, before the sheet lifts at {T6:.2f}"
+assert TYPE0 >= DEALS[3] + FLIGHT + SETTLE + F, "typing starts before the paper slip has settled"
+assert H7_OUT >= lend("L7"), "S7 headline leaves before the voice finishes it"
 assert TYPE1 + 1.0 <= T6, f"S5 typed line done at {TYPE1:.2f}: less than 1 s before {T6:.2f}"
 
 # ---------------------------------------------------------------- timeline helpers
@@ -151,17 +159,35 @@ def paper_ease(name: str, dur: float) -> str:
 heads: list[str] = []
 
 
-def headline(hid: str, lines: list[str], top: float, t_in: float, t_out: float | None, colour: str = INK,
-             cap: int = 112, parent: list[str] | None = None) -> int:
+def headline(hid: str, lines: list[str], top: float, t_in: float | None, t_out: float | None, colour: str = INK,
+             cap: int = 112, parent: list[str] | None = None, sync: str | None = None) -> int:
+    """Masked two-line headline. sync=<line id>: the voice's word sync runs inside the headline (yellow block behind
+    each spoken word, times from words.json) instead of a caption plate."""
     size = fit(lines, cap)
-    rows = "".join(f'<div class="ln"><span>{html.escape(s)}</span></div>' for s in lines)
+    k = 0
+    rows = ""
+    for s_ in lines:
+        ws = []
+        for wd in s_.split():
+            ws.append(f'<span class="hw" id="{hid}w{k}">{html.escape(wd)}</span>')
+            k += 1
+        rows += f'<div class="ln"><span>{" ".join(ws)}</span></div>'
+    if sync:
+        spoken = LINE[sync]["words"]
+        if [w["w"] for w in spoken] != " ".join(lines).split():
+            raise SystemExit(f"{hid}: headline words differ from spoken {sync}: cannot sync inside the headline")
+        for j, w in enumerate(spoken):
+            nxt = spoken[j + 1]["t0"] if j + 1 < len(spoken) else w["t1"] + .02
+            tw.append(f'tl.to("#{hid}w{j}", {{backgroundColor: "{YEL}", color: "{INK}", duration: .06, ease: "power1.out"}}, {at(w["t0"])});')
+            tw.append(f'tl.to("#{hid}w{j}", {{backgroundColor: "rgba(0,0,0,0)", color: "{colour}", duration: .1, ease: "power1.out"}}, {at(min(nxt, w["t1"] + .02))});')
     (parent if parent is not None else heads).append(
         f'<div id="{hid}" class="hl" style="left:{LM}px;top:{top:.0f}px;font-size:{size}px;color:{colour}">{rows}</div>')
     for i in range(len(lines)):
-        tw.append(f'tl.fromTo("#{hid} .ln:nth-child({i + 1}) span", {{yPercent: 118}}, '
-                  f'{{yPercent: 0, duration: .9, ease: "power4.out", immediateRender: true}}, {at(t_in + .11 * i)});')
+        if t_in is not None:
+            tw.append(f'tl.fromTo("#{hid} .ln:nth-child({i + 1}) > span", {{yPercent: 140}}, '
+                      f'{{yPercent: 0, duration: .9, ease: "power4.out", immediateRender: true}}, {at(t_in + .11 * i)});')
         if t_out is not None:
-            to(f"#{hid} .ln:nth-child({i + 1}) span", "yPercent: -118", t_out + .04 * i, .3, '"power3.in"')
+            to(f"#{hid} .ln:nth-child({i + 1}) > span", "yPercent: -140", t_out + .04 * i, .3, '"power3.in"')
     return size
 
 
@@ -173,7 +199,9 @@ def baseline(top: float, size: int, row: int) -> float:
 
 # ================================================================ S1 hook
 HL1_TOP = 652
-s1 = headline("h1", ["Every deal", "starts as a lead."], HL1_TOP, H1_IN, T2)
+H1_OUT = T2 - .3                        # S1 headline clears before the card drops past it
+assert H1_OUT >= lend("L1"), "S1 headline leaves before the voice finishes it"
+s1 = headline("h1", ["Every deal", "starts as a lead."], HL1_TOP, H1_IN, H1_OUT, sync="L1")
 MAST_H = 608
 dots = []
 STEP = 18
@@ -186,7 +214,8 @@ for iy in range(MAST_H // STEP + 1):
         if r > .6:
             dots.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{r:.1f}"/>')
 masthead = (f'<div id="mast" class="abs" style="left:0;top:0;width:{W}px;height:{MAST_H}px;background:url(green.png);overflow:hidden">'
-            f'<svg width="{W}" height="{MAST_H}" style="position:absolute;inset:0"><g fill="#1c4532">{"".join(dots)}</g></svg></div>')
+            f'<svg width="{W}" height="{MAST_H}" style="position:absolute;inset:0"><g fill="#1c4532">{"".join(dots)}</g></svg>'
+            f'<div style="position:absolute;left:{LM}px;top:{SAFE_T + 10}px;font-weight:800;font-size:56px;letter-spacing:-.05em;color:{PAPER}">Yourider</div></div>')
 tw.append(f'tl.to("#mast", {{y: -{MAST_H + 40}, duration: .4, ease: {paper_ease("power3.in", .4)}}}, {at(T2)});')
 
 
@@ -213,7 +242,7 @@ lead_card = (f'<div id="lead" class="abs shadow" style="left:{LC_X}px;top:{LC_Y}
              f'<img src="leadcard.png" style="position:absolute;left:-20px;top:-20px">'
              f'<div style="position:absolute;right:30px;top:-8px;width:70px;height:26px;background:{YEL}"></div>'
              f'<div style="position:absolute;left:34px;right:34px;top:70px;height:2px;background:{INK};opacity:.18"></div>'
-             f'<div style="position:absolute;left:34px;bottom:30px;font-weight:800;font-size:64px;letter-spacing:-.03em;color:{INK}">Lead</div></div>')
+             f'<div style="position:absolute;left:34px;bottom:22px;font-weight:800;font-size:92px;line-height:1;letter-spacing:-.03em;color:{INK}">Lead</div></div>')
 tw.append(f'tl.fromTo("#lead", {{x: 620, y: -520, rotation: 16}}, {{x: 0, y: 0, rotation: -1.2, duration: {3 * F:.3f}, '
           f'ease: S("power3.out", 3), immediateRender: true}}, {at(LEAD - 3 * F)});')
 tw.append(f'tl.to("#lead", {{scale: .985, duration: {F:.3f}, ease: "power2.out", yoyo: true, repeat: 1}}, {at(LEAD)});')
@@ -249,8 +278,8 @@ bar = (f'<div id="bar" class="abs" style="left:{BAR_X}px;top:{BAR_Y}px;width:{BA
        + "".join(f'<path id="nib{i}" d="{outline}" fill="none" stroke="{INK}" stroke-width="{wd}" stroke-linecap="round" pathLength="1" '
                  f'stroke-dasharray="{ln} {1 - ln}" stroke-dashoffset="{ln}" opacity="0"/>' for i, (ln, wd) in enumerate(NIB))
        + f'<circle id="tip" r="7.5" fill="{INK}" opacity="0" style="filter:drop-shadow(2px 3px 2px rgba(13,42,28,.35))"/></svg>'
-       f'<div class="lbl" style="left:0;top:{BAR_H + 18}px">Lead</div>'
-       f'<div class="lbl" style="right:0;top:{BAR_H + 18}px;text-align:right">Deal</div></div>')
+       f'<div class="lbl" id="lbl0" style="left:0;top:{BAR_H + 18}px">Lead</div>'
+       f'<div class="lbl" id="lbl3" style="right:0;top:{BAR_H + 18}px;text-align:right">Deal</div></div>')
 for k in range(4):
     tw.append(f'tl.set("#seg{k}", {{opacity: 0}}, 0);')
 show("#bar", T2 + .2)
@@ -267,8 +296,11 @@ tw.append(f'tl.set(["#nib0", "#nib1", "#nib2", "#tip"], {{opacity: 0}}, {at(PEN1
 # closure: 2-frame darken + thicken, 6-frame release, then the four segments print in (uneven, accelerating)
 tw.append(f'tl.to("#ol", {{attr: {{"stroke-width": 11}}, stroke: "#03100a", duration: {2 * F:.3f}, ease: "power2.out"}}, {at(PEN1)});')
 tw.append(f'tl.to("#ol", {{attr: {{"stroke-width": 6}}, stroke: "{INK}", duration: {6 * F:.3f}, ease: "power2.out"}}, {at(PEN1 + 2 * F)});')
-for k, d in enumerate([0, 3, 5, 6]):
-    tw.append(f'tl.set("#seg{k}", {{opacity: 1}}, {at(PEN1 + 4 * F + d * F)});')
+tw.append('tl.set(["#lbl0", "#lbl3"], {opacity: 0}, 0);')
+for k, d in enumerate(SEG_D):
+    tw.append(f'tl.set("#seg{k}", {{opacity: 1}}, {at(PEN1 + 2 * F + d * F)});')
+    if k in (0, 3):
+        tw.append(f'tl.fromTo("#lbl{k}", {{opacity: 0, y: 8}}, {{opacity: 1, y: 0, duration: .25, ease: "power3.out", immediateRender: false}}, {at(PEN1 + 2 * F + d * F)});')
 tw.append(f'tl.to("#ol", {{opacity: 0, duration: .3, ease: "power2.out"}}, {at(PEN1 + 12 * F)});')
 
 # the card rides: shrink onto segment 1 when the masthead lifts, hop on "stage" and 0.45 s later
@@ -276,14 +308,15 @@ CARD_S = .45
 cx0, cy0 = LC_X + LC_W / 2, LC_Y + LC_H / 2
 ride_y = BAR_Y - LC_H * CARD_S / 2 - 4
 pos = [(seg_cx[k] - cx0, ride_y - cy0) for k in range(4)]
-to("#lead", f"x: {pos[0][0]:.1f}, y: {pos[0][1]:.1f}, scale: {CARD_S}, rotation: -2.5", T2 + .1, .6, paper_ease("power3.inOut", .6))
+to("#lead", f"y: {pos[0][1]:.1f}, scale: {CARD_S}, rotation: 1.5", T2, .3, paper_ease("power3.inOut", .3))
+to("#lead", f"x: {pos[0][0]:.1f}, rotation: -2.5", T2 + .35, .5, paper_ease("power3.inOut", .5))
 for t_hop, k, nf in [(HOP1, 1, 3), (HOP2, 2, 2)]:
     to("#lead", f"x: {pos[k][0]:.1f}, rotation: {[-2.5, 1.2, -1.8][k]}", t_hop - nf * F, nf * F, f'S("power2.inOut", {nf})')
     to("#lead", "y: \"-=26\"", t_hop - nf * F, nf * F / 2, '"power2.out"')
     to("#lead", "y: \"+=26\"", t_hop - nf * F / 2, nf * F / 2, '"power2.in"')
 
 # ================================================================ S3 stall + silence
-s3 = headline("h3", ["Keeping it moving", "is the hard part."], 168, H3_IN, YR - .32)
+s3 = headline("h3", ["Keeping it moving", "is the hard part."], 168, H3_IN, YR - .32, sync="L3")
 to("#lead", f"x: {pos[2][0] + 24:.1f}", HARD, 2 * F, 'S("power2.out", 2)')
 to("#lead", f"x: {pos[2][0]:.1f}", HARD + 2 * F, 2 * F, 'S("power2.in", 2)')
 to("#lead", f"x: {pos[2][0] - 48:.1f}, rotation: -4", ANT0, .3, paper_ease("power2.out", .3))      # silent anticipation
@@ -310,7 +343,7 @@ for f in range(11):                     # whole-frame impact 1 of 1: a 1.2% page
 
 sub4_top = WM_TOP + WM_SIZE * .95 + 40
 sub4 = f'<div id="sub4" class="hl small" style="left:{LM}px;top:{sub4_top:.0f}px;font-size:40px;color:{MUTED}"><div class="ln"><span>A CRM built around</span></div></div>'
-tw.append(f'tl.fromTo("#sub4 span", {{yPercent: 118}}, {{yPercent: 0, duration: .7, ease: "power4.out", immediateRender: true}}, {at(CRM)});')
+tw.append(f'tl.fromTo("#sub4 .ln > span", {{yPercent: 140}}, {{yPercent: 0, duration: .7, ease: "power4.out", immediateRender: true}}, {at(CRM)});')
 show("#sub4", CRM, T5 + .5)
 TAG_TOP = sub4_top + 84
 tags_html, x = [], LM
@@ -355,7 +388,7 @@ for k in range(4):
     t0 = DEALS[k]
     tw.append(f'tl.set("#sl{k}", {{zIndex: {10 + k}}}, {at(t0)});')
     # anticipation (once, for the whole pile): press down 48 px, the top slip pulls back 30 px
-    to(f"#sl{k}", 'y: "+=48"' if k else 'y: "+=48", x: "+=30"', TOP - 10 * F, 10 * F, '"power2.out"')
+    to(f"#sl{k}", 'y: "+=48"' if k else 'y: "+=48", x: "+=30"', DEALS[0] - 10 * F, 10 * F, '"power2.out"')
     tw.append(f'tl.to("#sl{k}", {{x: 0, y: 0, scale: 1, rotation: {frot + (1.8 if k % 2 else -1.8)}, duration: {FLIGHT:.3f}, ease: SB(.3, 0, .2, 1, 3)}}, {at(t0)});')
     tw.append(f'tl.to("#sl{k}", {{rotation: {frot}, duration: {SETTLE:.3f}, ease: B(.3, 0, .25, 1.15)}}, {at(t0 + FLIGHT)});')
     tw.append(f'tl.to("#sl{k}", {{scale: .996, duration: {F:.3f}, ease: "power1.out", yoyo: true, repeat: 1}}, {at(t0 + FLIGHT + SETTLE)});')
@@ -464,12 +497,12 @@ tw.append(f'tl.fromTo("#gpage", {{y: {-H}}}, {{y: 0, duration: .4, ease: {paper_
 PANEL_S = .42
 p_cx, p_cy = PN_X + PN_W / 2, PN_Y + PN_H / 2
 tgt_cx, tgt_cy = SAFE_R - PN_W * PANEL_S / 2, SAFE_T + 20 + PN_H * PANEL_S / 2
-to("#panel", f"x: {tgt_cx - p_cx:.1f}, y: {tgt_cy - p_cy:.1f}, scale: {PANEL_S}, rotation: 2.2", T7 + .15, .5, paper_ease("power3.inOut", .5))
-to("#panel", 'y: "-=520", rotation: -6', T8, .3, 'S("power3.in", 3)')
-show("#panel", T6, T8 + .35)
+to("#panel", f"x: {tgt_cx - p_cx:.1f}, y: {tgt_cy - p_cy:.1f}, scale: {PANEL_S}, rotation: 2.2", T7 + .1, PANEL_SHRINK, paper_ease("power3.inOut", PANEL_SHRINK))
+to("#panel", 'y: "-=520", rotation: -6', H7_OUT, .3, 'S("power3.in", 3)')
+show("#panel", T6, H7_OUT + .35)
 H7_TOP = tgt_cy + PN_H * PANEL_S / 2 + 90
-s7 = headline("h7", ["Follow along", "as it comes together."], H7_TOP, H7_IN, T8, colour=PAPER)
-show("#h7", T7, T8 + .45)
+s7 = headline("h7", ["Follow along", "as it comes together."], H7_TOP, H7_IN, H7_OUT, colour=PAPER, sync="L7")
+show("#h7", T7, H7_OUT + .4)
 # the accent: a blank yellow block, bottom right. Built as the lockup's 120 px square at the frame centre and carried
 # by transforms only (x, y, scale), so the S8 collapse interpolates sub-pixel.
 LK_SQ, LK_GAP = 120, 28
@@ -504,7 +537,7 @@ for i in range(8):
     tw.append(f'tl.fromTo("#lt{i}", {{autoAlpha: 0, x: 8}}, {{autoAlpha: 1, x: 0, duration: .3, ease: "power3.out", immediateRender: true}}, {at(LET0 + i * .035)});')
 SETTLED = LET0 + 7 * .035 + .3
 sub8 = (f'<div id="sub8" class="abs" style="left:{SAFE_L}px;width:{SAFE_R - SAFE_L}px;top:{LK_CY + 130}px;text-align:center;font-weight:600;'
-        f'font-size:40px;line-height:1.25;letter-spacing:-.01em;color:{PAPER}">A CRM for leads, pipelines and deals.<br>Coming soon.</div>')
+        f'font-size:48px;line-height:1.22;letter-spacing:-.01em;color:{PAPER}">A CRM for leads, pipelines and deals.<br>Coming soon.</div>')
 tw.append(f'tl.fromTo("#sub8", {{autoAlpha: 0}}, {{autoAlpha: 1, duration: .3, ease: "power2.out", immediateRender: true}}, {at(SUB_IN)});')
 assert DUR - SETTLED >= 1.5, f"wordmark held only {DUR - SETTLED:.2f}s"
 
@@ -556,14 +589,26 @@ def pages(ws: list[dict]) -> list[list[dict]]:
 
 
 THEMES = {"paper": (CARD, INK, YEL, INK), "yellow": (CARD, INK, INK, PAPER), "green": (PAPER, INK, YEL, INK)}
-caps = []
-n = 0
-for li, (lid, ln) in enumerate(words.items()):
+IN_HEADLINE = {"L1", "L3", "L7"}       # headline repeats the voice: word sync runs inside the headline
+LINE_THEME = {"L5": "yellow", "L7": "green"}
+plan = []
+for lid, ln in words.items():
+    if lid in IN_HEADLINE:
+        continue
     pgs = pages(ln["words"])
     for pi, pg in enumerate(pgs):
         a = (ln["start"] if pi == 0 else pg[0]["t0"]) - .15
         b = pgs[pi + 1][0]["t0"] - .15 if pi + 1 < len(pgs) else ln["start"] + ln["dur"] + .35
-        theme = "yellow" if T5 <= a + .15 < T6 else "green" if a + .15 >= T7 else "paper"
+        plan.append([lid, pg, a, b])
+for i in range(len(plan) - 1):           # never two caption pages at once
+    plan[i][3] = min(plan[i][3], plan[i + 1][2])
+for (_, _, a0, b0), (_, _, a1, _) in zip(plan, plan[1:]):
+    assert b0 <= a1 + 1e-9 and a0 < b0, f"caption windows overlap: {a0:.2f}-{b0:.2f} and {a1:.2f}"
+caps = []
+n = 0
+for lid, pg, a, b in plan:
+    if True:
+        theme = LINE_THEME.get(lid, "paper")
         plate, ink, hi, hi_ink = THEMES[theme]
         rows = "".join('<div class="row">' + "".join(f'<span class="w" id="w{n}_{j + sum(len(r) for r in wrap(pg)[:ri])}">{html.escape(w["w"])}</span>'
                                                      for j, w in enumerate(r)) + "</div>" for ri, r in enumerate(wrap(pg)))
@@ -580,12 +625,13 @@ assert CAP_TOP_MIN >= INFO_MAX + 10, f"two-line captions reach up to {CAP_TOP_MI
 
 # ---------------------------------------------------------------- sound and picture: every cue must sit on its picture event
 picture = {
-    "S1 headline rises": H1_IN - .05, "S1 Lead card lands": LEAD, "S2 masthead lifts out": T2, "S2 pen draws the bar": PEN0,
+    "S1 crop marks print in": .05, "S1 Lead card lands": LEAD, "S2 masthead lifts out": T2, "S2 pen draws the bar": PEN0,
     "S2 card hops to segment 2": HOP1, "S2 card hops to segment 3": HOP2, "S3 card nudges and slips back": HARD,
     "S4 name slams in (8 frames)": SLAM0, "S4 plates snap into register (only whole-frame impact)": SNAP,
     "S4 tag Leads lands": TAGS[0][1], "S4 tag Pipelines lands": TAGS[1][1], "S4 tag Deals lands": TAGS[2][1],
-    "S5 yellow sheet pushes up": T5, "S5 first slip dealt": DEALS[0], "S5 last slip lands": DEALS[3] + FLIGHT,
-    "S5 typing starts": TYPE0, "S5 typing done, cursor removed": CURSOR_OFF, "S6 yellow sheet pulled away": T6,
+    "S5 yellow sheet pushes up": T5, "S5 first slip dealt": DEALS[0],
+    "S5 typing starts": TYPE0, "S5 typing done, cursor removed": CURSOR_OFF,
+    **{f"S5 keystroke {i + 1}": TYPE0 + c * CHAR_F * F for i, c in enumerate(KEYS[1:])}, "S6 yellow sheet pulled away": T6,
     "S6 handshake starts printing": BUILDING, "S6 marker stroke under now": MARK0, "S6 last print strip lands": PIECE,
     "S7 page inverts to bottle green": T7, "S8 yellow block collapses": T8, "S8 lockup brake, square settles": BRAKE,
     "S8 sub-line appears": SUB_IN + .05,
@@ -615,7 +661,8 @@ html,body{{width:{W}px;height:{H}px;overflow:hidden;background:{PAPER};font-fami
 .hl{{position:absolute;font-weight:800;letter-spacing:-.05em;line-height:.88;white-space:nowrap}}
 .hl.small{{font-weight:600;letter-spacing:-.01em;line-height:1.1}}
 .ln{{overflow:hidden;padding:.12em .2em .2em 0;margin:-.12em -.2em -.2em 0}}
-.ln span{{display:inline-block}}
+.ln > span{{display:inline-block}}
+.hw{{padding:0 .05em;margin:0 -.05em;border-radius:.04em}}
 .lbl{{position:absolute;font-weight:600;font-size:40px;letter-spacing:-.01em;color:{MUTED}}}
 .plate-t{{position:absolute;left:0;top:0;font-weight:800;letter-spacing:-.05em;line-height:1;white-space:nowrap;mix-blend-mode:multiply}}
 .tag span{{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:64px;letter-spacing:-.01em;color:{INK};padding-bottom:4px}}
