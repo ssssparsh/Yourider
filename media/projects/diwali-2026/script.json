@@ -68,8 +68,8 @@
   {
    "file": "drone",
    "t": 0.0,
-   "gain": 0.55,
-   "note": "tanpura-like drone under the whole film"
+   "gain": 0.18,
+   "note": "tanpura-like drone; gain 0.18 keeps it >=10 dB under the voice (QA 2026-11-04)"
   },
   {
    "file": "match",

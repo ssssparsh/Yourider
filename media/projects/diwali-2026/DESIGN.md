@@ -158,3 +158,11 @@ Lead's three changes (2026-11-04), as built in `gen.py`. Where they differ from 
 3. **End lockup fills the frame.** Built bottom-up: sign line box ends at y 1234 (inside the 108 px bottom margin), headline above it at the largest size that fits 864 px (141 px; 156 does not fit the margins), bowls 48 px above the headline. That makes the camera tilt **272 px** (was 400): lamps at y 942, step edge at 896, the whole rangoli visible above them (top tip at about y 76, uncut). Headline top 1025, sign below at 22 px.
 
 Builder re-anchoring notes (not review changes): the dot grid is timed to complete at the end of L1 (3.46 s) so it holds still 1.1 s before the first line on "draw"; the tilt starts 0.2 s after "nothing" ends (14.22-15.32 s) so it settles before "Happy"; lamps light at the five catch cues in `script.json` (lamp 1 on "lamp", lamp 2 on "next", lamps 3-5 on "first" +0 / +0.33 / +0.57 s; gaps accelerate 0.88 / 0.33 / 0.24 s), spark carries 420 / 300 / 220 / 160 ms from `lamp_carry`.
+
+## Changes after QA (2026-11-04)
+- Captions 50 -> 56 px (line height 64, top 112) to meet shotcraft Q11; still max 3 lines and clear of the rangoli tip.
+- Drone gain 0.55 -> 0.18: the bed was 2-6 dB above the voice; voice-free gaps were louder than speech. Now gaps -16.3 LUFS vs speech -13.8.
+- Flame catches start one frame before their cue so each flame is visible on the frame its sound starts (lamps 3-5 were 1.3-1.5 frames late).
+- Lockup hold is 2.3 s (complete at 17.7 s, film ends 20.0 s); this replaces the ">= 2.5 s" in section 5.
+- Powder order: the film follows section 7 (powder can land before its loop is fully drawn); section 2's "dots, line, colour" is the overall order per area, not per dot.
+- Cover: frame 0 is dark on purpose. Post with media/out/diwali-2026-cover.png as the custom thumbnail (LinkedIn and Instagram both allow a custom cover on upload).

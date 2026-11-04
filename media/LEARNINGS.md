@@ -21,6 +21,11 @@ before planning; QA adds to it after every review.
 | Linear motion | (rule from shotcraft R2) | motionlint.py |
 
 ## Caught by QA, still checked by eye (candidates for automation)
+- Music/drone bed louder than the voice (diwali-2026: 2-6 dB above voice after ducking). Measure voice and bed stems per line; bed should sit >= 10 dB under the voice. Candidate check for check.py.
+- A tween that starts exactly on a sound cue becomes visible 1-2 frames late (diwali-2026 lamps). Start sync-critical entrances one frame before the cue.
+- Captions under 56 px (shotcraft Q11) passed because our floor was 40 px. Use 56 px for captions, 40 px only for secondary text.
+- A hold written in DESIGN.md contradicted the built timing. Assert holds in gen.py from words.json, not in prose.
+- A film that opens dark needs a custom cover: decide it in PLAN.md before the build.
 - Elements overlapping during transitions (both 4:5 videos): render frame strips across every transition before the full render.
 - Key information held under 1 s (tag row; S6 stills): hold timing should be declared per beat and asserted.
 - Brand not named early; empty first frame (LinkedIn may use frame 0 as the cover): frame 0 must show the headline and the brand.

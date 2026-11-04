@@ -178,7 +178,7 @@ def text_w(s: str, size: float, weight: int, track: float) -> float:
 
 
 # ---------------------------------------------------------------- captions (L1-L4)
-CAP_SIZE, CAP_LH, CAP_W, CAP_TOP = 50, 58, 820, 128
+CAP_SIZE, CAP_LH, CAP_W, CAP_TOP = 56, 64, 820, 112  # QA: shotcraft Q11 floor 56 px
 
 
 def wrap_count(txt: str) -> int:
@@ -357,7 +357,8 @@ for i in range(5):
     halos_html.append(f'<g id="hc{i}" opacity="0"><circle id="hk{i}" cx="{fx:.1f}" cy="{fy - 40:.1f}" r="170" fill="url(#halo)"/></g>')
     bowls_html.append(bowl(i))
     flames_html.append(flame(i))
-    t = IGN[i]
+    # the flame starts one frame before the catch cue so it is visible on the cue frame (QA: +1.3-1.5 frames late)
+    t = IGN[i] - 1 / 30
     tw.append(f'tl.fromTo("#fc{i}", {{opacity: 0, scaleY: 0.55, svgOrigin: "{fx:.1f} {fy:.1f}"}}, '
               f'{{opacity: 1, scaleY: 1, duration: 0.5, ease: "arrive"}}, {at(t)});')
     tw.append(f'tl.fromTo("#hc{i}", {{opacity: 0}}, {{opacity: 1, duration: 0.9, ease: "arrive"}}, {at(t)});')
