@@ -2,7 +2,7 @@
 # Installs everything the media pipeline needs into media/.tools (gitignored). Idempotent; every repo pinned.
 #
 #   media/setup.sh                    core: Python venv, voices (Kokoro + Piper), Whisper model, Lemo-Opuscar
-#                                     engine, gbro-collage-info rules + SFX, HyperFrames, GSAP, Inter
+#                                     engine, gbro-collage-info rules + SFX, HyperFrames, GSAP, Inter, Schibsted Grotesk
 #   media/setup.sh --with-shotcraft   video-shotcraft (124 shot recipes, aesthetic rules) + its Remotion template
 #   media/setup.sh --with-taste       taste-skill (art direction, anti-generic house style, look-and-fix loop)
 #   media/setup.sh --with-blender     headless Blender (bpy 5.2, Python 3.13) for 3D shots, Cycles on CPU
@@ -78,9 +78,10 @@ fetch lemomo-ai/lemo-opuscar bebbbe1aa92a3cb4bb6f83500e61b23a17d1aa00 "$LEMO_DIR
 [ -d "$LEMO_DIR/node_modules/three" ] || (cd "$LEMO_DIR" && npm ci --ignore-scripts --no-audit --no-fund >/dev/null)
 fetch pyang5166/gbro-collage-info 0b97a817a6b65285d8aa90431079500a29092eab "$MEDIA_TOOLS/gbro-collage-info"
 
-echo "==> web assets: GSAP $GSAP_VERSION, Inter (OFL), HyperFrames $HYPERFRAMES_VERSION"
+echo "==> web assets: GSAP $GSAP_VERSION, Inter + Schibsted Grotesk (OFL), HyperFrames $HYPERFRAMES_VERSION"
 npm_file "gsap@$GSAP_VERSION" dist/gsap.min.js "$MEDIA_TOOLS/web/gsap.min.js"
 npm_file "$INTER_PKG" files/inter-latin-wght-normal.woff2 "$MEDIA_TOOLS/web/Inter.woff2"
+npm_file "$SCHIBSTED_PKG" files/schibsted-grotesk-latin-wght-normal.woff2 "$MEDIA_TOOLS/web/SchibstedGrotesk.woff2"
 npx --yes "hyperframes@$HYPERFRAMES_VERSION" --version >/dev/null
 
 # ---- optional -----------------------------------------------------------------------------------------

@@ -28,6 +28,7 @@ what we checked, it is not legal advice.
 | Font | Source | Licence |
 |---|---|---|
 | Inter | npm `@fontsource-variable/inter@5.2.5` | SIL Open Font License 1.1 |
+| Schibsted Grotesk (variable, latin) | npm `@fontsource-variable/schibsted-grotesk@5.3.0` (package licence OFL-1.1, checked 2026-11-04) | SIL Open Font License 1.1 |
 
 ## Engines and libraries (what renders the video)
 
