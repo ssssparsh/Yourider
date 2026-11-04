@@ -35,3 +35,7 @@
 - Added `designer` between director and builder: it writes `media/projects/<name>/DESIGN.md` (subject inventory, tokens, type scale, motion language, refused defaults) and 3 rendered style frames before any code, and reviews the builder's stills gate. Builder must follow DESIGN.md; QA treats unjustified deviations as FIX.
 - Its reference library (React Bits, Skiper UI, recent.design, Curated.design, Tegaki, Utopia, Met/Rijksmuseum/NYPL open archives and ~35 more) is for study, not copying. Free/open sources first; paid or unverified items are marked as such and need a licence entry in `media/rights.md` before use.
 - Not yet tested on a real project: the first run will be the paused 40 s video, when the user resumes it.
+
+## 2026-11-04 — Gates tested adversarially, then fixed
+- Tested plancheck/motionlint against deliberate slop and normal copy. Before: 6 classic slop lines passed ("isn't just a CRM", "No chaos. Just deals.", "built for X, built for Y, built for Z"), a normal sentence failed on "actually"/"landscape", and motionlint missed 3 of 4 scale-from-zero pops (gsap.from, single quotes, 0.0).
+- Now: those patterns FAIL; ambiguous words and vague adjectives (powerful, intuitive, easy) WARN instead of FAIL; SaaS filler (streamline, leverage, robust, "deserves better") FAILs; motionlint reads any timeline object and any quote style. Remotion and Lemo timelines are still not linted.

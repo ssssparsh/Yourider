@@ -18,13 +18,20 @@ import sys
 from pathlib import Path
 
 # blader/humanizer SKILL.md §12 (overused AI words) and §16 (sales language), checked 2026-11-04
-AI_WORDS = ["actually", "additionally", "align with", "bolstered", "crucial", "deep dive", "delve", "enduring",
-            "enhance", "garner", "interplay", "intricate", "intricacies", "landscape", "meticulous", "meticulously",
-            "pivotal", "quietly", "showcase", "tapestry", "testament", "underscore", "valuable", "vibrant"]
+AI_WORDS = ["additionally", "bolstered", "crucial", "deep dive", "delve", "garner", "interplay", "intricate",
+            "intricacies", "meticulous", "meticulously", "pivotal", "showcase", "tapestry", "testament", "underscore",
+            "vibrant"]
+# same list, but words people also use normally ("I recorded it in landscape"): warn, a person decides
+AI_WORDS_SOFT = ["actually", "align with", "enduring", "enhance", "landscape", "quietly", "valuable"]
+# SaaS-marketing filler (our addition, not from humanizer): FAIL hard ones, WARN vague adjectives
+BUZZ = ["streamline", "leverage", "harness", "robust", "next-gen", "all-in-one", "game-changing", "reimagine",
+        "redefine", "one-stop", "best-in-class", "deserves better", "here's the thing", "here is the thing"]
+BUZZ_SOFT = ["powerful", "intuitive", "smart", "simple", "easy", "magic", "magical"]
 SALES = ["game-changer", "game changer", "revolutionize", "revolutionise", "seamless", "seamlessly", "supercharge",
          "unlock", "unleash", "effortless", "effortlessly", "next-level", "cutting-edge", "world-class",
          "transform your", "elevate your", "empower", "the future of"]
-STAGING = [r"\bnot (just|only|merely)\b", r"\bit'?s not\b[^.]*\bit'?s\b", r"\bnot\b[^.,]{1,40}\bbut\b", r"\brather than\b"]
+STAGING = [r"\bnot (just|only|merely)\b", r"\b(is|are)n'?t (just|only|merely)\b", r"\bmore than (just|a|an)\b",
+           r"\bno \w+\.\s+(no \w+\.\s+)*just\b", r"\bit'?s not\b[^.]*\bit'?s\b", r"\bnot\b[^.,]{1,40}\bbut\b", r"\brather than\b"]
 RESIDUE = ["i hope this", "let me know", "as an ai", "certainly!", "great question", "in conclusion", "in summary"]
 
 fails: list[str] = []
@@ -70,6 +77,18 @@ def copy_checks(label: str, text: str) -> None:
     for w in AI_WORDS:
         if re.search(rf"\b{re.escape(w)}\b", low):
             fail(f"{label}: overused AI word '{w}' (humanizer §12): \"{text}\"")
+    for w in AI_WORDS_SOFT + BUZZ_SOFT:
+        if re.search(rf"\b{re.escape(w)}\b", low):
+            warn(f"{label}: '{w}' is often filler; keep only if it states something concrete: \"{text}\"")
+    for w in BUZZ:
+        if w in low:
+            fail(f"{label}: marketing filler '{w}': say what it does instead: \"{text}\"")
+    # forced triad by repetition: "built for X, built for Y, built for Z"
+    toks = norm(text).split()
+    grams = [" ".join(toks[i:i + 2]) for i in range(len(toks) - 1)]
+    for g in set(grams):
+        if grams.count(g) >= 3:
+            fail(f"{label}: forced triad, '{g}' repeated {grams.count(g)}x (humanizer §10): \"{text}\"")
     for w in SALES:
         if w in low:
             fail(f"{label}: sales language '{w}' (humanizer §16): \"{text}\"")
