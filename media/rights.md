@@ -22,10 +22,17 @@ what we checked, it is not legal advice.
 | Item | Source | Licence | Used in |
 |---|---|---|---|
 | Narration voice `en_US-ljspeech-medium` | Piper voice trained on the LJ Speech dataset | Dataset: public domain (voice model card) | fallback voice |
-| Narration voice Kokoro-82M (`am_michael` default) | onnx-community/Kokoro-82M-v1.0-ONNX, run with kokoro-onnx | Model Apache-2.0 | default free voice |
+| Narration voice Kokoro-82M (`am_michael` default) | onnx-community/Kokoro-82M-v1.0-ONNX, run with kokoro-onnx | Model Apache-2.0 | default free voice; `diwali-2026` narration (`am_michael`) |
 | Narration voice ElevenLabs | not used (decision 2026-11-04: no paid voice services) | its free plan forbids commercial use | none |
 | 10 effects in `gbro-collage-info/assets/sfx` | [pyang5166/gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) @ 0b97a81, sourced from Mixkit | Repo MIT; the repo states the Mixkit sounds are royalty-free for commercial use | `collage-handshake`, `linkedin-intro`, `ai-editing-story` |
+| Drone, match, catch, catch-soft, bell of `diwali-2026` | Synthesised by `media/projects/diwali-2026/sounds.py` (numpy/scipy, fixed seeds), made in this repo; no third-party audio or samples | Our own work | `diwali-2026` |
 | Score and foley of `one-map` | Synthesised by our `audio.py` with Lemo-Opuscar `core/audio` (plucked-string and procedural synthesis) | Our own composition; library MIT | `one-map` |
+
+## Designs and patterns
+
+| Item | Source | Licence | Used in |
+|---|---|---|---|
+| Sikku kolam (7x7 dot grid, mirror-curve loops), diyas, flames, textures | Traditional public-domain folk pattern form, constructed in code by `media/projects/diwali-2026/gen.py` (port of the designer's `kolam.js`); no published design traced or copied | Our own work | `diwali-2026` |
 
 ## Fonts
 

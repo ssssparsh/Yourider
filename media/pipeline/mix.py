@@ -44,7 +44,9 @@ for cue in spec.get("sfx", []):
     ms = int(max(0.0, t) * 1000)
     filt.append(f"[{k}:a]adelay={ms}|{ms},volume={cue.get('gain', 0.4)},aformat=channel_layouts=stereo[f{k}]")
     fx.append(f"[f{k}]")
-filt.append("".join(voices) + f"amix=inputs={len(voices)}:normalize=0,asplit=2[vk][vm]")
+# pad the voice bus to the film length: sidechaincompress stops at its shorter input, which cut every
+# effect (drone tails, bells) at the last spoken word
+filt.append("".join(voices) + f"amix=inputs={len(voices)}:normalize=0,apad=whole_dur={dur},asplit=2[vk][vm]")
 if fx:
     filt.append("".join(fx) + f"amix=inputs={len(fx)}:normalize=0[fx]")
     filt.append("[fx][vk]sidechaincompress=threshold=0.04:ratio=4[fxd]")

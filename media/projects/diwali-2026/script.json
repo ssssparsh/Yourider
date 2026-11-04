@@ -83,42 +83,40 @@
    "word": "lamp",
    "offset": 0.05,
    "gain": 0.5,
-   "note": "lamp 1 catches"
+   "lamp": 1,
+   "note": "lamp 1 catches (match flame to wick)"
   },
   {
    "file": "catch",
    "word": "next",
    "offset": 0.0,
    "gain": 0.42,
-   "note": "lamp 2 lit from lamp 1"
+   "lamp": 2,
+   "note": "lamp 2 catches from lamp 1"
   },
   {
    "file": "catch-soft",
    "word": "first",
-   "offset": 0.15,
-   "gain": 0.32,
-   "note": "lamp 3"
+   "offset": 0.0,
+   "gain": 0.3,
+   "lamp": 3,
+   "note": "lamp 3 catches from lamp 2"
   },
   {
    "file": "catch-soft",
    "word": "first",
-   "offset": 0.5,
-   "gain": 0.26,
-   "note": "lamp 4"
+   "offset": 0.33,
+   "gain": 0.25,
+   "lamp": 4,
+   "note": "lamp 4 catches from lamp 3"
   },
   {
    "file": "catch-soft",
    "word": "first",
-   "offset": 0.85,
-   "gain": 0.22,
-   "note": "lamp 5"
-  },
-  {
-   "file": "catch-soft",
-   "word": "first",
-   "offset": 1.2,
-   "gain": 0.18,
-   "note": "lamp 6"
+   "offset": 0.57,
+   "gain": 0.21,
+   "lamp": 5,
+   "note": "lamp 5 catches from lamp 4"
   },
   {
    "file": "bell",
@@ -130,5 +128,12 @@
  ],
  "_voice_free_beat": "14.4-15.4 s: no voice; the drone and flames continue (a dead-silent gap would fail check.py's dead-air check and break the warmth)",
  "sfx_dir": "media/.build/diwali-2026/sfx (made by sounds.py, synthesised, see rights.md)",
- "room_tone": false
+ "room_tone": false,
+ "lamp_carry": {
+  "_note": "seconds the spark takes from lamp n-1's flame to lamp n's wick; it leaves at (lamp n ignition - carry). Ignition times are the catch cues above (sfx[].lamp), read by gen.py, so sound and picture share one source.",
+  "2": 0.42,
+  "3": 0.3,
+  "4": 0.22,
+  "5": 0.16
+ }
 }
