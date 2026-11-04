@@ -1,6 +1,6 @@
 # Yourider media pipeline
 
-Narrated, word-synced videos for Yourider marketing, built from code. Self-contained: nothing here touches the CRM
+Narrated, word-synced videos for Yourider marketing, built from code. Self-contained: nothing here touches the app code
 in `src/`. Python and shell (not TypeScript) because the speech and audio tools are Python.
 
 ## Quick start

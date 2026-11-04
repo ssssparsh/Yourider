@@ -37,5 +37,5 @@
 - Not yet tested on a real project: the first run will be the paused 40 s video, when the user resumes it.
 
 ## 2026-11-04 — Gates tested adversarially, then fixed
-- Tested plancheck/motionlint against deliberate slop and normal copy. Before: 6 classic slop lines passed ("isn't just a CRM", "No chaos. Just deals.", "built for X, built for Y, built for Z"), a normal sentence failed on "actually"/"landscape", and motionlint missed 3 of 4 scale-from-zero pops (gsap.from, single quotes, 0.0).
+- Tested plancheck/motionlint against deliberate slop and normal copy. Before: 6 classic slop lines passed ("isn't just a tool", "No chaos. Just deals.", "built for X, built for Y, built for Z"), a normal sentence failed on "actually"/"landscape", and motionlint missed 3 of 4 scale-from-zero pops (gsap.from, single quotes, 0.0).
 - Now: those patterns FAIL; ambiguous words and vague adjectives (powerful, intuitive, easy) WARN instead of FAIL; SaaS filler (streamline, leverage, robust, "deserves better") FAILs; motionlint reads any timeline object and any quote style. Remotion and Lemo timelines are still not linted.
