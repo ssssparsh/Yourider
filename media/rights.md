@@ -11,7 +11,11 @@ what we checked, it is not legal advice.
 
 | File in `media/assets/` | Source | Licence | Used in | How to get it again |
 |---|---|---|---|---|
-| `AdobeStock_524285853-cutout.png` | Adobe Stock #524285853 "Two businessmen shake hands on white background", background removed with Photoshop (Adobe connector) | Adobe Stock free tier, licensed 2026-11-03 to the account connected to Claude; Adobe Stock licence terms apply | `collage-handshake`, `linkedin-intro` | Adobe connector: `asset_license_and_download_stock` 524285853 -> `image_remove_background` -> `asset_inline_preview` (size 2000) |
+| `AdobeStock_524285853-cutout.png` | Adobe Stock #524285853 "Two businessmen shake hands on white background", background removed with Photoshop (Adobe connector) | Adobe Stock free tier, licensed 2026-11-03 to the account connected to Claude; Adobe Stock licence terms apply | `collage-handshake`, `linkedin-intro`, `ai-editing-story` (inside the evidence still `collage.png`) | Adobe connector: `asset_license_and_download_stock` 524285853 -> `image_remove_background` -> `asset_inline_preview` (size 2000) |
+| (none: `.build/ai-editing-story/evidence/`, regenerated) `li-hook.png`, `li-slam.png`, `li-agents.png`, `li-lockup.png` | Frames of our own render `media/out/linkedin-intro.mp4` at 1.8 / 11.2 / 17.5 / 29.0 s | Our own work | `ai-editing-story` | `media/projects/ai-editing-story/build.sh` extracts them with ffmpeg (build `linkedin-intro` first) |
+| (none: `.build/ai-editing-story/evidence/`, regenerated) `map-route.png`, `map-drop.png`, `map-whole.png` | Frames of our own render `media/out/one-map.mp4` at 6.4 / 25.3 / 31.5 s | Our own work | `ai-editing-story` | `ai-editing-story/build.sh` extracts them (build `one-map` first) |
+| (none: `.build/ai-editing-story/evidence/`, regenerated) `collage.png` | Frame of our own render `media/out/collage-handshake.mp4` at 2.4 s; contains the Adobe Stock cut-out above | Our own work; the cut-out inside it stays under its Adobe Stock licence | `ai-editing-story` | `ai-editing-story/build.sh` extracts it (build `collage-handshake` first) |
+| (none: `.build/ai-editing-story/evidence/`, regenerated) `qa-contact-sheet.jpg` | Copy of `media/out/linkedin-intro.check.jpg`, the QA contact sheet `check.py` wrote for the fixed (SHIP) intro | Our own work | `ai-editing-story` | `ai-editing-story/build.sh` copies it (build `linkedin-intro` first) |
 
 ## Sound
 
@@ -20,7 +24,7 @@ what we checked, it is not legal advice.
 | Narration voice `en_US-ljspeech-medium` | Piper voice trained on the LJ Speech dataset | Dataset: public domain (voice model card) | fallback voice |
 | Narration voice Kokoro-82M (`am_michael` default) | onnx-community/Kokoro-82M-v1.0-ONNX, run with kokoro-onnx | Model Apache-2.0 | default free voice |
 | Narration voice ElevenLabs | not used (decision 2026-11-04: no paid voice services) | its free plan forbids commercial use | none |
-| 10 effects in `gbro-collage-info/assets/sfx` | [pyang5166/gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) @ 0b97a81, sourced from Mixkit | Repo MIT; the repo states the Mixkit sounds are royalty-free for commercial use | `collage-handshake`, `linkedin-intro` |
+| 10 effects in `gbro-collage-info/assets/sfx` | [pyang5166/gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) @ 0b97a81, sourced from Mixkit | Repo MIT; the repo states the Mixkit sounds are royalty-free for commercial use | `collage-handshake`, `linkedin-intro`, `ai-editing-story` |
 | Score and foley of `one-map` | Synthesised by our `audio.py` with Lemo-Opuscar `core/audio` (plucked-string and procedural synthesis) | Our own composition; library MIT | `one-map` |
 
 ## Fonts
