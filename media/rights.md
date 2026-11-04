@@ -19,7 +19,7 @@ what we checked, it is not legal advice.
 |---|---|---|---|
 | Narration voice `en_US-ljspeech-medium` | Piper voice trained on the LJ Speech dataset | Dataset: public domain (voice model card) | fallback voice |
 | Narration voice Kokoro-82M (`am_michael` default) | onnx-community/Kokoro-82M-v1.0-ONNX, run with kokoro-onnx | Model Apache-2.0 | default free voice |
-| Narration voice ElevenLabs (when configured) | ElevenLabs API | Commercial use only on paid plans (Starter and up); the free plan does not allow it | when `ELEVENLABS_API_KEY` is set |
+| Narration voice ElevenLabs | not used (decision 2026-11-04: no paid voice services) | its free plan forbids commercial use | none |
 | 10 effects in `gbro-collage-info/assets/sfx` | [pyang5166/gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) @ 0b97a81, sourced from Mixkit | Repo MIT; the repo states the Mixkit sounds are royalty-free for commercial use | `collage-handshake`, `linkedin-intro` |
 | Score and foley of `one-map` | Synthesised by our `audio.py` with Lemo-Opuscar `core/audio` (plucked-string and procedural synthesis) | Our own composition; library MIT | `one-map` |
 

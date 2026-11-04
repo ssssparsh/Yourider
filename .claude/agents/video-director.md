@@ -23,7 +23,7 @@ A video planned without a direction looks like the average of every video: decid
 ## Deliverables (in `media/projects/<name>/`)
 1. `PLAN.md`: inventory; chosen taste direction (palette, type) and why; logline; setup -> turn -> ending; the benchmark (what to learn, what not to copy); a shot list (time, card or composition, framing, camera, why); the sound plan (at least one real silence before the peak); the engine per shot.
 2. `script.json`, the contract the builder and QA work from:
-   - `duration`; `voice` = `{"provider": "auto", "elevenlabs": {"voice_id": "...", "model_id": "eleven_multilingual_v2"}, "kokoro": {"voice": "am_michael"}}` (auto = ElevenLabs when the key and voice_id exist, else free Kokoro); `heard_as` for names speech recognition mishears.
+   - `duration`; `voice` = `{"provider": "auto", "kokoro": {"voice": "am_michael"}}` (free Kokoro; no paid voice services); `heard_as` for names speech recognition mishears.
    - `lines`: `{id, start, say, show}`. `say` is what the voice speaks; `show` is what captions show. Spell brand names for the voice in `say` ("Your Rider") and correctly in `show` ("Yourider").
    - Leave room: about 2.6 words per second of speech, plus at least 0.3 s between lines. `voice.py` fails if lines overlap; fix the plan, not the check.
    - `sfx` (collage/HyperFrames shots): sounds from `$MEDIA_TOOLS/gbro-collage-info/assets/sfx`. Anchor any sound that must land on a word to the word (`{"file": "focus", "word": "handshake", "offset": 0.02}`), never to a guessed time.

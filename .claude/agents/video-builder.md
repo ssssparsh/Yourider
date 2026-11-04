@@ -24,7 +24,7 @@ Engines:
 - **Blender** (`setup.sh --with-blender`): `$MEDIA_BLENDER_PY script.py` with `import bpy`, Cycles on CPU. About 2 min per 1080p frame here, so render stills (hero frames, backplates) and move them with a camera in the other engines; real 3D animation needs a GPU machine.
 - GSAP and Inter come from `$MEDIA_TOOLS/web/` (CDNs are blocked; npm works).
 
-Voice: `voice.py` picks ElevenLabs when `ELEVENLABS_API_KEY` is set and script.json names a `voice_id` (word times then come from ElevenLabs' character alignment), otherwise free Kokoro, then Piper. It prints which provider and timing source it used; report that.
+Voice: free Kokoro (default `am_michael`), Piper as fallback. No paid voice services (decision 2026-11-04); never set up ElevenLabs. `voice.py` prints the provider and timing source it used; report them.
 
 ## Rules
 - Each project has a `build.sh` that runs end to end and ends with `check.py`. Copy the closest existing project and change only what the plan needs.

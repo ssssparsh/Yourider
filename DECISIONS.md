@@ -23,3 +23,6 @@
 - Both tools converge on one finding: the strongest product video shows the real product UI. Yourider has no UI yet, so the biggest design jump comes once there are real screens to capture.
 - Blender: headless `bpy` 5.2.3 for 3D stills (~140 s per 1080p frame on CPU). Real 3D animation and Blender MCP (needs the desktop app) belong on a machine with a GPU.
 - VoiceStudio (local ElevenLabs alternative, AGPL) not installed: desktop/Docker app, GPU-oriented; an option for a local machine later.
+
+## 2026-11-04 — No paid voice services
+- The user decided against ElevenLabs because it is paid. Kokoro (free, Apache-2.0) is the voice; Piper is the fallback. The optional ElevenLabs code in `voice.py` stays dormant (it runs only if `ELEVENLABS_API_KEY` is set) and the agents are told not to set it up.

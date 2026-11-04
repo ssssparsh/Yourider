@@ -13,10 +13,9 @@ media/projects/one-map/build.sh                 # 33.5 s transit-map film    -> 
 Every build ends with `pipeline/check.py` and fails loudly; read its output before sharing a video.
 
 ## Voice
-`voice.py` uses ElevenLabs when `ELEVENLABS_API_KEY` is set (environment Network secrets, never in a file) and the
-project's `script.json` names a `voice_id`; word times then come from ElevenLabs' own character alignment. Otherwise
-it uses Kokoro (free, Apache-2.0, default `am_michael`), then Piper. Every take is checked with Whisper.
-ElevenLabs needs `api.elevenlabs.io` allowed in the environment's network settings; its free plan forbids commercial use.
+The voice is **Kokoro** (free, local, Apache-2.0, default `am_michael`); Piper is the fallback. Every take is
+checked with Whisper. Decision 2026-11-04: no paid voice services. `voice.py` still contains an optional ElevenLabs
+provider, but it only runs if someone deliberately sets `ELEVENLABS_API_KEY`, which we do not.
 
 ## Design system
 - **taste-skill** deals a researched art direction (palette, type, composition) from a short brief; the director uses it before any shot.
