@@ -1,8 +1,21 @@
 {
  "title": "Collage: every deal ends with a handshake",
  "duration": 6.8,
- "voice": "en_US-ljspeech-medium",
- "length_scale": 1.05,
+ "voice": {
+  "provider": "auto",
+  "elevenlabs": {
+   "voice_id": "",
+   "model_id": "eleven_multilingual_v2"
+  },
+  "kokoro": {
+   "voice": "am_michael",
+   "speed": 1.0
+  },
+  "piper": {
+   "model": "en_US-ljspeech-medium",
+   "length_scale": 1.05
+  }
+ },
  "heard_as": {
   "writer": "rider",
   "ryder": "rider",

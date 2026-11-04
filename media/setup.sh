@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Installs everything the media pipeline needs into media/.tools (gitignored). Idempotent; every repo pinned.
 #
-#   media/setup.sh                    core: Python venv, voice, Whisper model, Lemo-Opuscar engine,
-#                                     gbro-collage-info rules + SFX, HyperFrames, GSAP, Inter
+#   media/setup.sh                    core: Python venv, voices (Kokoro + Piper), Whisper model, Lemo-Opuscar
+#                                     engine, gbro-collage-info rules + SFX, HyperFrames, GSAP, Inter
+#   media/setup.sh --with-shotcraft   video-shotcraft (124 shot recipes, aesthetic rules) + its Remotion template
+#   media/setup.sh --with-taste       taste-skill (art direction, anti-generic house style, look-and-fix loop)
+#   media/setup.sh --with-blender     headless Blender (bpy 5.2, Python 3.13) for 3D shots, Cycles on CPU
 #   media/setup.sh --with-openmontage OpenMontage (agentic explainer pipelines, Remotion)
 #   media/setup.sh --with-earshot     Earshot + real-sound skill (CPU torch, ~1 GB)
 #   media/setup.sh --with-animation   ClaudeAnimationBase (hand-painted cartoons)
@@ -21,9 +24,9 @@ SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 declare -A W=()
 for arg in "$@"; do
   case "$arg" in
-    --with-openmontage|--with-earshot|--with-animation|--with-onetake|--with-graphify|--with-ytdlp) W[${arg#--with-}]=1 ;;
-    --all) for k in openmontage earshot animation onetake graphify ytdlp; do W[$k]=1; done ;;
-    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    --with-openmontage|--with-earshot|--with-animation|--with-onetake|--with-graphify|--with-ytdlp|--with-shotcraft|--with-taste|--with-blender) W[${arg#--with-}]=1 ;;
+    --all) for k in openmontage earshot animation onetake graphify ytdlp shotcraft taste blender; do W[$k]=1; done ;;
+    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -62,6 +65,12 @@ uv pip install -q --python "$MEDIA_PY" -r "$MEDIA_ROOT/requirements.txt"
 
 echo "==> narration voice (public domain: LJSpeech)"
 [ -f "$PIPER_VOICES/en_US-ljspeech-medium.onnx" ] || "$MEDIA_PY" -m piper.download_voices --download-dir "$PIPER_VOICES" en_US-ljspeech-medium
+echo "==> Kokoro voice (Apache-2.0, onnx-community/Kokoro-82M-v1.0-ONNX)"
+KK="$MEDIA_TOOLS/kokoro"; KB="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main"
+mkdir -p "$KK"
+[ -f "$KK/model_quantized.onnx" ] || curl -sSfL -o "$KK/model_quantized.onnx" "$KB/onnx/model_quantized.onnx"   # q8f16 crashes onnxruntime on some CPUs
+for v in $KOKORO_VOICES; do [ -f "$KK/$v.bin" ] || curl -sSfL -o "$KK/$v.bin" "$KB/voices/$v.bin"; done
+"$MEDIA_PY" -c "import numpy as np,sys,pathlib;d=pathlib.Path(sys.argv[1]);np.savez(d/'voices.npz',**{v:np.fromfile(d/f'{v}.bin',dtype=np.float32).reshape(-1,1,256) for v in sys.argv[2:]})" "$KK" $KOKORO_VOICES
 echo "==> Whisper model (word timestamps)"
 "$MEDIA_PY" -c "from faster_whisper import WhisperModel; WhisperModel('base.en', device='cpu', compute_type='int8')"
 
@@ -97,6 +106,23 @@ if on graphify; then
   (cd "$REPO_ROOT" && "$(uv tool dir --bin)/graphify" install --project --platform claude)
 fi
 if on ytdlp; then uv pip install -q --python "$MEDIA_PY" "yt-dlp[default]==2026.10.26"; fi
+if on shotcraft; then
+  SC="$MEDIA_TOOLS/video-shotcraft"
+  fetch Vincentwei1021/video-shotcraft 1266a3ec4831289c4d893d42dd5102723658039a "$SC"
+  (cd "$SC/template" && npm ci --no-audit --no-fund >/dev/null)              # Remotion 4.0.484 for its demos
+  mkdir -p "$SKILLS_DIR"; ln -sfn "$SC" "$SKILLS_DIR/video-shotcraft"
+fi
+if on taste; then
+  TS="$MEDIA_TOOLS/taste-skill"
+  fetch Leonxlnx/taste-skill 12af471f627f866411b4bd785b19646d3672784c "$TS"
+  mkdir -p "$SKILLS_DIR"; ln -sfn "$TS/skills/taste-skill" "$SKILLS_DIR/taste-skill"
+fi
+if on blender; then
+  BV="$MEDIA_TOOLS/blender-venv"
+  [ -x "$BV/bin/python" ] || uv venv -q --python 3.13 "$BV"
+  uv pip install -q --python "$BV/bin/python" "bpy==5.2.3"
+  "$BV/bin/python" -c "import bpy; print('==> Blender', bpy.app.version_string)"
+fi
 
 echo
 echo "media setup done: tools in $MEDIA_TOOLS, browser $MEDIA_CHROME"

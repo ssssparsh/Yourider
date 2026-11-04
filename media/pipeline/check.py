@@ -36,6 +36,7 @@ ap.add_argument("--size", default="1920x1080")
 ap.add_argument("--fps", type=float, default=30)
 ap.add_argument("--silence", nargs="*", default=[])
 ap.add_argument("--lufs", type=float, default=-14)
+ap.add_argument("--silent-ok", action="store_true", help="silent test render: skip audio, loudness and dead-air checks")
 a = ap.parse_args()
 v = a.video
 
@@ -46,8 +47,12 @@ vs = next(s for s in info["streams"] if s["codec_type"] == "video")
 num, den = map(int, vs["r_frame_rate"].split("/"))
 ok(f"{vs['width']}x{vs['height']}" == a.size, f"size {vs['width']}x{vs['height']} (want {a.size})")
 ok(abs(num / den - a.fps) < .01, f"fps {num / den:g} (want {a.fps:g})")
-ok(any(s["codec_type"] == "audio" for s in info["streams"]), "audio stream present")
 print(f"INFO duration {dur:.2f}s")
+if a.silent_ok:
+    print("INFO --silent-ok: audio, loudness and dead-air checks skipped")
+    print("RESULT " + ("PASS" if not fails else f"FAIL ({len(fails)})"))
+    sys.exit(1 if fails else 0)
+ok(any(s["codec_type"] == "audio" for s in info["streams"]), "audio stream present")
 
 eb = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", v, "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True).stderr
 summ = eb[eb.rfind("Summary:"):]

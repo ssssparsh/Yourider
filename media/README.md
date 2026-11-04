@@ -6,11 +6,22 @@ in `src/`. Python and shell (not TypeScript) because the speech and audio tools 
 ## Quick start
 
 ```bash
-media/setup.sh                                  # once per machine/session: tools into media/.tools (gitignored)
+media/setup.sh --with-shotcraft --with-taste --with-blender   # once per machine/session: tools into media/.tools
 media/projects/collage-handshake/build.sh       # 6.8 s paper-collage shot   -> media/out/collage-handshake.mp4
 media/projects/one-map/build.sh                 # 33.5 s transit-map film    -> media/out/one-map.mp4 (~10 min render)
 ```
 Every build ends with `pipeline/check.py` and fails loudly; read its output before sharing a video.
+
+## Voice
+`voice.py` uses ElevenLabs when `ELEVENLABS_API_KEY` is set (environment Network secrets, never in a file) and the
+project's `script.json` names a `voice_id`; word times then come from ElevenLabs' own character alignment. Otherwise
+it uses Kokoro (free, Apache-2.0, default `am_michael`), then Piper. Every take is checked with Whisper.
+ElevenLabs needs `api.elevenlabs.io` allowed in the environment's network settings; its free plan forbids commercial use.
+
+## Design system
+- **taste-skill** deals a researched art direction (palette, type, composition) from a short brief; the director uses it before any shot.
+- **video-shotcraft** gives 124 shot recipe cards with tuned Remotion demos, written aesthetic rules (rhythm, texture, sound, copy) and a final review; the director picks cards, the builder adapts the exact demo, QA checks every rule.
+- **Blender** renders real 3D stills (about 2 min per 1080p frame on CPU here); animate them with camera moves in the other engines.
 
 ## The team (Claude Code agents in `.claude/agents/`)
 
@@ -58,6 +69,8 @@ media/
 | | |
 |---|---|
 | Transit-map film (WebGL) | ~17 s render per film second |
+| Remotion 3D shot (shotcraft deck-deal, software GL `--gl=swangle`) | ~11-40 s per frame: ~1.5 h for 5 s; use a GPU machine for 3D cards |
+| Blender Cycles still, 1080p, 48 samples | ~140 s per frame |
 | HyperFrames shot | ~2 min for 7 s, including narration and QA |
 | Join | ~2 min per minute of output |
 | Sweet spot | 30-60 s pieces; 5-6 min = 10-12 chapters joined with `join.py` |

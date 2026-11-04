@@ -17,7 +17,14 @@ You build Yourider videos with the toolkit in `media/`. Every command starts wit
 | Join chapters | `media/pipeline/join.py out.mp4 a.mp4 b.mp4 ...` (normalises, crossfades) |
 | Check | `media/pipeline/check.py` (run it; the video-qa agent runs it again independently) |
 
-Engines: HyperFrames `$HYPERFRAMES_VERSION` (`npx --yes hyperframes@$HYPERFRAMES_VERSION`), the Lemo-Opuscar transit-map engine in `$LEMO_DIR` (copy `gl.js`/`film.js` from `styles/transit-map/demo`, as `media/projects/one-map/build.sh` does), OpenMontage/Remotion if installed with `--with-openmontage`. GSAP and Inter come from `$MEDIA_TOOLS/web/` (CDNs are blocked; npm works).
+Engines:
+- **Remotion via video-shotcraft** (`setup.sh --with-shotcraft`): the template in `$MEDIA_TOOLS/video-shotcraft/template` (Remotion 4.0.484). Adapt the card's exact demo from `$MEDIA_TOOLS/video-shotcraft/demos/...` (read the card first; keep its tuned parameters), register it in an entry under `template/src/_yourider/`, render with `npx remotion render <entry> <id> <out> --browser-executable "$MEDIA_CHROME" --gl=swangle` (no GPU here: `--gl=swangle` is required, and 3D shots render slowly). Remotion needs a paid company licence above 3 people.
+- **HyperFrames** `$HYPERFRAMES_VERSION` (`npx --yes hyperframes@$HYPERFRAMES_VERSION`) for collage and kinetic text.
+- **Lemo-Opuscar transit map** in `$LEMO_DIR` (copy `gl.js`/`film.js` from `styles/transit-map/demo`, as `media/projects/one-map/build.sh` does).
+- **Blender** (`setup.sh --with-blender`): `$MEDIA_BLENDER_PY script.py` with `import bpy`, Cycles on CPU. About 2 min per 1080p frame here, so render stills (hero frames, backplates) and move them with a camera in the other engines; real 3D animation needs a GPU machine.
+- GSAP and Inter come from `$MEDIA_TOOLS/web/` (CDNs are blocked; npm works).
+
+Voice: `voice.py` picks ElevenLabs when `ELEVENLABS_API_KEY` is set and script.json names a `voice_id` (word times then come from ElevenLabs' character alignment), otherwise free Kokoro, then Piper. It prints which provider and timing source it used; report that.
 
 ## Rules
 - Each project has a `build.sh` that runs end to end and ends with `check.py`. Copy the closest existing project and change only what the plan needs.

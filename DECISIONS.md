@@ -16,3 +16,10 @@
 - The repo is public: licensed stock never committed (`media/assets/` gitignored), every asset/sound/voice/font/engine recorded in `media/rights.md`. Remotion (via OpenMontage) may need a company licence; the default pipeline does not use it.
 - Python + shell here (not TypeScript) because the speech/audio tools are Python; it sits outside `src/` and the TS build.
 - Verified 2026-11-04 by running everything from the repo: setup from scratch, both projects end to end, join, and the video-qa agent. QA caught, and we fixed: an unsupported "Automated" product claim on a map label, sources hidden under captions, dead digital silence (now a room tone in mix.py + a dead-air check in check.py), and clipping in join.py (+5.3 dBTP; now two-pass loudness + limiter).
+
+## 2026-11-04 — Design system, better voice, Blender
+- Voice: `voice.py` now has providers. ElevenLabs (user's choice; paid Starter+ for commercial use) is used when `ELEVENLABS_API_KEY` is set and a `voice_id` is configured, with ElevenLabs' character alignment as the timing source. Kokoro-82M (free, Apache-2.0) is the default otherwise; Piper is the last fallback. Every take is still checked with Whisper. Kokoro's q8f16 model segfaults onnxruntime here; the int8 `model_quantized.onnx` is used.
+- Design: taste-skill (art direction) and video-shotcraft (shot recipe cards, aesthetic rules, final review) are built into the director and QA agents. Shotcraft's demos render with its pinned Remotion template; this machine has no GPU, so `--gl=swangle` is required and 3D shots cost ~11 s per frame.
+- Both tools converge on one finding: the strongest product video shows the real product UI. Yourider has no UI yet, so the biggest design jump comes once there are real screens to capture.
+- Blender: headless `bpy` 5.2.3 for 3D stills (~140 s per 1080p frame on CPU). Real 3D animation and Blender MCP (needs the desktop app) belong on a machine with a GPU.
+- VoiceStudio (local ElevenLabs alternative, AGPL) not installed: desktop/Docker app, GPU-oriented; an option for a local machine later.

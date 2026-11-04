@@ -14,6 +14,8 @@ export LEMO_DIR="$MEDIA_TOOLS/lemo-opuscar"
 export HYPERFRAMES_VERSION="0.9.8"
 export GSAP_VERSION="3.15.0"
 export INTER_PKG="@fontsource-variable/inter@5.2.5"
+export KOKORO_VOICES="am_michael am_adam am_eric af_heart af_bella bf_emma"
+export MEDIA_BLENDER_PY="$MEDIA_TOOLS/blender-venv/bin/python"
 
 export HF_HUB_DISABLE_XET=1
 export HYPERFRAMES_NO_TELEMETRY=1

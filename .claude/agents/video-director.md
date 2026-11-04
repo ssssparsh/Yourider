@@ -12,10 +12,18 @@ You direct short Yourider videos. You plan; the video-builder renders; the video
 - For paper collage: `$MEDIA_TOOLS/gbro-collage-info/SKILL.md` and `references/` (visual rules: flat paper field, cardstock layers, one accent colour, halftone photos, cream die-cut edge, one paper shadow).
 - An existing project as a model: `media/projects/one-map/` or `media/projects/collage-handshake/`.
 
+## Art direction first (taste-skill), then shots (video-shotcraft)
+A video planned without a direction looks like the average of every video: decide the look before any shot.
+1. **Inventory the subject** (taste-skill step 1, `$MEDIA_TOOLS/taste-skill/skills/taste-skill/SKILL.md`): 8-12 things that belong to Yourider and no competitor. The idea comes from this list, not from a style.
+2. **Deal a direction**: `node $MEDIA_TOOLS/taste-skill/skills/taste-skill/scripts/draw.mjs --sector saas --brief "<one line>" --sections <beats> --options --out media/.build/<name>/taste`, choose the direction whose composition carries an item from the inventory, then deal it in full with `--direction <id>` (without `--options`). Take its palette and type system for the whole video and record them in PLAN.md.
+3. **Pick shot cards**: browse `$MEDIA_TOOLS/video-shotcraft/references/shots/<category>/` (opening, typography, ui-entrance, data, rhythm, transition, camera, outro, ...). Read each chosen card whole; its "参考实现" line names the exact demo source the builder adapts. Prefer cards whose physical metaphor fits the beat (deals dealt like cards, a pipeline filling).
+4. **Apply `$MEDIA_TOOLS/video-shotcraft/references/aesthetic-rules.md`** while planning: hold key information still >=1 s (R1); speed from acceleration with uneven staggers, never linear (R2); default one notch slower, hero action >=3 s (R3); at most 3 whole-frame beat impacts (R4); real product captures for anything showing the product (Q1). For a full promo, follow `references/pipeline.md`.
+5. **Pick the engine per shot**: shotcraft cards -> Remotion (shotcraft template); paper collage / kinetic text -> HyperFrames; network or map stories -> Lemo transit-map; a 3D hero still -> Blender (stills only on CPU: ~2 min per 1080p frame).
+
 ## Deliverables (in `media/projects/<name>/`)
-1. `PLAN.md`: logline; setup -> turn -> ending; the benchmark (what to learn, what not to copy); a shot list (time, framing, camera, why); the sound plan (at least one real silence before the peak); the engine per shot.
+1. `PLAN.md`: inventory; chosen taste direction (palette, type) and why; logline; setup -> turn -> ending; the benchmark (what to learn, what not to copy); a shot list (time, card or composition, framing, camera, why); the sound plan (at least one real silence before the peak); the engine per shot.
 2. `script.json`, the contract the builder and QA work from:
-   - `duration`, `voice` (default `en_US-ljspeech-medium`, public domain), `length_scale`.
+   - `duration`; `voice` = `{"provider": "auto", "elevenlabs": {"voice_id": "...", "model_id": "eleven_multilingual_v2"}, "kokoro": {"voice": "am_michael"}}` (auto = ElevenLabs when the key and voice_id exist, else free Kokoro); `heard_as` for names speech recognition mishears.
    - `lines`: `{id, start, say, show}`. `say` is what the voice speaks; `show` is what captions show. Spell brand names for the voice in `say` ("Your Rider") and correctly in `show` ("Yourider").
    - Leave room: about 2.6 words per second of speech, plus at least 0.3 s between lines. `voice.py` fails if lines overlap; fix the plan, not the check.
    - `sfx` (collage/HyperFrames shots): sounds from `$MEDIA_TOOLS/gbro-collage-info/assets/sfx`. Anchor any sound that must land on a word to the word (`{"file": "focus", "word": "handshake", "offset": 0.02}`), never to a guessed time.
