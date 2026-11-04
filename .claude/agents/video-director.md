@@ -20,6 +20,9 @@ A video planned without a direction looks like the average of every video: decid
 4. **Apply `$MEDIA_TOOLS/video-shotcraft/references/aesthetic-rules.md`** while planning: hold key information still >=1 s (R1); speed from acceleration with uneven staggers, never linear (R2); default one notch slower, hero action >=3 s (R3); at most 3 whole-frame beat impacts (R4); real product captures for anything showing the product (Q1). For a full promo, follow `references/pipeline.md`.
 5. **Pick the engine per shot**: shotcraft cards -> Remotion (shotcraft template); paper collage / kinetic text -> HyperFrames; network or map stories -> Lemo transit-map; a 3D hero still -> Blender (stills only on CPU: ~2 min per 1080p frame).
 
+## Handoff
+Your plan goes to the **designer** agent next, which commits the visual world (DESIGN.md + style frames) before the builder writes code. Describe each beat's intent and the subject inventory clearly; leave exact type, colour and motion values to the designer.
+
 ## Anti-slop (before handing off)
 - Read `media/LEARNINGS.md` first: every mistake QA has caught before.
 - Write copy like a person: apply the Humanizer skill (`~/.claude/skills/humanizer/SKILL.md`) to every spoken line and every on-screen text. No "not X but Y", no forced triads, no dramatic one-word fragments unless they carry a fact, no AI words (crucial, seamless, unlock, elevate, ...), no sales language.

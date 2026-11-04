@@ -26,6 +26,9 @@ Engines:
 
 Voice: free Kokoro (default `am_michael`), Piper as fallback. No paid voice services (decision 2026-11-04); never set up ElevenLabs. `voice.py` prints the provider and timing source it used; report them.
 
+## Design source of truth
+`media/projects/<name>/DESIGN.md` (written by the designer agent) fixes palette, type scale, grid, motion language and per-scene frames. Follow it exactly; do not invent new colours, fonts, eases or entrances. Send the stills-gate frames to the designer's review before the full render.
+
 ## Gates in every build.sh (in this order; the build stops on the first FAIL)
 1. `python3 media/pipeline/plancheck.py <project>` (copy and plan).
 2. After gen.py: `python3 media/pipeline/motionlint.py <build>/hf/index.html --exceptions <project>/script.json` (Emil Kowalski's motion standards: no scale-from-zero, no linear easing, transform/opacity only; ease-in only for slams).

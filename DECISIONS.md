@@ -30,3 +30,8 @@
 ## 2026-11-04 — Anti-slop gates
 - User asked for no AI slop. Added two automatic gates: `plancheck.py` (Humanizer writing patterns, headline/caption repeats, facts, learned rules) before any build, and `motionlint.py` (Emil Kowalski's motion standards) after the composition is generated. Impeccable's craft floor and taste-skill guide the director and QA. `LEARNINGS.md` turns every QA finding into a rule.
 - Tested on our own work: plancheck finds the six headline repeats QA found by hand in the paused 40 s video; motionlint finds scale-from-zero entrances in both 4:5 videos. Ease-in on entrances is a warning, not a failure, because slams into an impact accelerate on purpose.
+
+## 2026-11-04 — Designer agent
+- Added `designer` between director and builder: it writes `media/projects/<name>/DESIGN.md` (subject inventory, tokens, type scale, motion language, refused defaults) and 3 rendered style frames before any code, and reviews the builder's stills gate. Builder must follow DESIGN.md; QA treats unjustified deviations as FIX.
+- Its reference library (React Bits, Skiper UI, recent.design, Curated.design, Tegaki, Utopia, Met/Rijksmuseum/NYPL open archives and ~35 more) is for study, not copying. Free/open sources first; paid or unverified items are marked as such and need a licence entry in `media/rights.md` before use.
+- Not yet tested on a real project: the first run will be the paused 40 s video, when the user resumes it.
