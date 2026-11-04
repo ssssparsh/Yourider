@@ -1,0 +1,49 @@
+{
+ "title": "One Map: the Yourider pipeline as a metro map",
+ "duration": 33.5,
+ "voice": "en_US-ljspeech-medium",
+ "length_scale": 1.05,
+ "heard_as": {
+  "writer": "rider",
+  "ryder": "rider",
+  "root": "route"
+ },
+ "lines": [
+  {
+   "id": "L1",
+   "start": 0.6,
+   "say": "Every deal starts as a single dot.",
+   "show": "Every deal starts as a single dot."
+  },
+  {
+   "id": "L2",
+   "start": 3.4,
+   "say": "Your Rider draws its route. Contacted, qualified, proposal, negotiation.",
+   "show": "Yourider draws its route. Contacted, qualified, proposal, negotiation."
+  },
+  {
+   "id": "L3",
+   "start": 9.6,
+   "say": "Leads arrive from everywhere. Your website, events, outreach, and referrals.",
+   "show": "Leads arrive from everywhere. Your website, events, outreach, and referrals."
+  },
+  {
+   "id": "L4",
+   "start": 16.0,
+   "say": "When a lead goes quiet, follow ups carry it across.",
+   "show": "When a lead goes quiet, follow-ups carry it across."
+  },
+  {
+   "id": "L5",
+   "start": 21.6,
+   "say": "And every route ends at the same station.",
+   "show": "And every route ends at the same station."
+  },
+  {
+   "id": "L6",
+   "start": 26.6,
+   "say": "Your Rider. Your whole pipeline, on one map.",
+   "show": "Yourider. Your whole pipeline, on one map."
+  }
+ ]
+}

@@ -1,3 +1,9 @@
-# Third-party media tooling installed by scripts/setup-media-tools.sh
-/tools/
 .env
+
+# media pipeline: installed tools, intermediates, rendered videos and licensed assets never go in git (public repo)
+/media/.tools/
+/media/.build/
+/media/out/
+/media/assets/*
+!/media/assets/README.md
+__pycache__/

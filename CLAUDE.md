@@ -25,6 +25,9 @@ Pre-completion verification. Before marking any task done: run typecheck + lint 
 /src/db             Schema + migrations, DB adapters
 /src/ingestion      [V2] Scraper scripts, repo-ingestion scripts, and any
                     vector-store adapters. See §5 and §6.
+/media              Marketing video pipeline (Python/shell, self-contained,
+                    outside the TS build). See media/README.md; agents in
+                    .claude/agents/video-*.md. Licensed assets never committed.
 5. Scraping — Data Ingestion for Agents
 Goal: agents (especially enrichment/research agents in /src/agents) should be able to pull live external data (company info, market data, competitor pricing, etc.) rather than relying on static training knowledge.
 V1 — ACTIVE NOW

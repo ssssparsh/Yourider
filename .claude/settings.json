@@ -1,16 +1,7 @@
 {
   "extraKnownMarketplaces": {
-    "ecc": {
-      "source": { "source": "github", "repo": "affaan-m/everything-claude-code", "ref": "b38be6a7f6350964d59328b52f0624e1d1d552d1" }
-    },
     "hyperframes": {
       "source": { "source": "github", "repo": "heygen-com/hyperframes", "ref": "47dddedd6cd1dea646c5ae53d40bb5821f45590f" }
-    },
-    "ponytail": {
-      "source": { "source": "github", "repo": "DietrichGebert/ponytail", "ref": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846" }
-    },
-    "mattpocock": {
-      "source": { "source": "github", "repo": "mattpocock/skills", "ref": "4ae2317ddb22b046e26455e4f9c9b3aaaf62212d" }
     },
     "lemolab": {
       "source": { "source": "github", "repo": "lemomo-ai/lemo-opuscar", "ref": "bebbbe1aa92a3cb4bb6f83500e61b23a17d1aa00" }
@@ -20,10 +11,7 @@
     }
   },
   "enabledPlugins": {
-    "ecc@ecc": true,
     "hyperframes@hyperframes": true,
-    "ponytail@ponytail": true,
-    "mattpocock-skills@mattpocock": true,
     "lemo-opuscar@lemolab": true,
     "painted-animation@opus-video-skills": true,
     "kinetic-reel@opus-video-skills": true

@@ -1,0 +1,81 @@
+{
+ "title": "Collage: every deal ends with a handshake",
+ "duration": 6.8,
+ "voice": "en_US-ljspeech-medium",
+ "length_scale": 1.05,
+ "heard_as": {
+  "writer": "rider",
+  "ryder": "rider",
+  "root": "route"
+ },
+ "lines": [
+  {
+   "id": "L1",
+   "start": 0.6,
+   "say": "Every deal ends with a handshake.",
+   "show": "Every deal ends with a handshake."
+  },
+  {
+   "id": "L2",
+   "start": 3.7,
+   "say": "Your Rider gets you there.",
+   "show": "Yourider gets you there."
+  }
+ ],
+ "assets": {
+  "cutout": "AdobeStock_524285853-cutout.png"
+ },
+ "sfx": [
+  {
+   "file": "whoosh-in",
+   "t": 0.0,
+   "gain": 0.35
+  },
+  {
+   "file": "pop-soft",
+   "t": 0.4,
+   "gain": 0.4
+  },
+  {
+   "file": "whoosh-soft",
+   "t": 0.45,
+   "gain": 0.3
+  },
+  {
+   "file": "click",
+   "t": 1.1,
+   "gain": 0.3
+  },
+  {
+   "file": "click",
+   "t": 1.45,
+   "gain": 0.3
+  },
+  {
+   "file": "click",
+   "t": 1.85,
+   "gain": 0.3
+  },
+  {
+   "file": "pop-land",
+   "t": 1.7,
+   "gain": 0.55
+  },
+  {
+   "file": "focus",
+   "word": "handshake",
+   "offset": 0.02,
+   "gain": 0.55
+  },
+  {
+   "file": "whoosh-in",
+   "t": 3.6,
+   "gain": 0.3
+  },
+  {
+   "file": "reveal",
+   "t": 3.8,
+   "gain": 0.35
+  }
+ ]
+}
