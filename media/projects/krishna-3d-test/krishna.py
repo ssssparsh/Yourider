@@ -568,7 +568,46 @@ sc.cycles.max_bounces = 3
 r.resolution_x, r.resolution_y, r.resolution_percentage = W, H, 100
 sc.view_settings.view_transform = "Standard"
 sc.view_settings.look = "None"
-r.use_freestyle = True
+LINES = os.environ.get("KR_LINES", "hull")   # hull (fast, geometry), freestyle (slow, single-threaded), 0 (none)
+r.use_freestyle = LINES == "freestyle"
+if LINES == "hull":
+    # inverted-hull outlines: a slightly larger copy of each part with flipped normals, black where it faces the camera
+    # from behind (the rim around the silhouette), transparent elsewhere. Cycles ignores backface culling, so the
+    # Backfacing output does the culling in the shader.
+    om = bpy.data.materials.new("outline")
+    om.use_nodes = True
+    ont = om.node_tree
+    ont.nodes.clear()
+    o_out = ont.nodes.new("ShaderNodeOutputMaterial")
+    o_geo = ont.nodes.new("ShaderNodeNewGeometry")
+    o_ink = ont.nodes.new("ShaderNodeEmission")
+    o_ink.inputs[0].default_value = (0.012, 0.006, 0.012, 1)
+    o_tr = ont.nodes.new("ShaderNodeBsdfTransparent")
+    o_mix = ont.nodes.new("ShaderNodeMixShader")
+    ont.links.new(o_geo.outputs["Backfacing"], o_mix.inputs[0])
+    ont.links.new(o_ink.outputs[0], o_mix.inputs[1])
+    ont.links.new(o_tr.outputs[0], o_mix.inputs[2])
+    o_lp = ont.nodes.new("ShaderNodeLightPath")   # only the camera sees the outline; light and shadow rays pass through
+    o_mix2 = ont.nodes.new("ShaderNodeMixShader")
+    ont.links.new(o_lp.outputs["Is Camera Ray"], o_mix2.inputs[0])
+    ont.links.new(o_tr.outputs[0], o_mix2.inputs[1])
+    ont.links.new(o_mix.outputs[0], o_mix2.inputs[2])
+    ont.links.new(o_mix2.outputs[0], o_out.inputs[0])
+    skip = ("iris", "pupil", "shine", "mouth", "nose", "tilak", "brow", "lash", "bead", "barb", "stem", "fold", "pleat")
+    for ob in CHAR.all_objects:
+        if ob.type != "MESH" or ob.name.startswith(skip):
+            continue
+        if len(ob.material_slots) < 2:
+            ob.data.materials.append(None) if len(ob.data.materials) < 2 else None
+        ob.material_slots[1].link = "OBJECT"
+        ob.material_slots[1].material = om
+        sc_ = sum(ob.matrix_world.to_scale()) / 3
+        mod = ob.modifiers.new("outline", "SOLIDIFY")
+        mod.thickness = 0.0075 / max(sc_, 1e-3)
+        mod.offset = 1.0
+        mod.use_flip_normals = True
+        mod.use_rim = False
+        mod.material_offset = 1
 r.line_thickness_mode = "ABSOLUTE"
 r.line_thickness = 1.6 * W / 720
 ls = bpy.context.view_layer.freestyle_settings.linesets[0]

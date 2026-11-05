@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # 10 s cartoon 3D test reel: Bal Krishna built in code (Blender, CPU Cycles, toon shading, Freestyle outlines).
 # usage: media/projects/krishna-3d-test/build.sh   -> media/out/krishna-3d-test.mp4 (1080x1920)
-# Renders 120 frames at 12 fps ("on twos", like hand-drawn cartoons) at 540x960 in two processes, then upscales.
+# Renders 120 frames at 12 fps ("on twos", like hand-drawn cartoons) at 540x960 in ONE process, then upscales.
+# Measured per frame: Freestyle outlines ~20 s (single-threaded), so outlines are inverted-hull geometry (~free);
+# 4 samples + denoise is enough for flat toon shading. Two processes only fight over the 4 CPUs.
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/env.sh"
 P="$MEDIA_ROOT/projects/krishna-3d-test"; B="$MEDIA_ROOT/.build/krishna-3d-test"; OUT="$MEDIA_ROOT/out"
 mkdir -p "$B" "$OUT"
-export KR_W=${KR_W:-540} KR_H=${KR_H:-960} KR_SAMPLES=${KR_SAMPLES:-10}
+export KR_W=${KR_W:-540} KR_H=${KR_H:-960} KR_SAMPLES=${KR_SAMPLES:-4} KR_LINES=${KR_LINES:-hull}
 if [ -z "${SKIP_RENDER:-}" ]; then
   rm -f "$B"/f_*.png
-  "$MEDIA_BLENDER_PY" "$P/krishna.py" -- "$B" anim 1 60 > "$B/r1.log" 2>&1 &
-  "$MEDIA_BLENDER_PY" "$P/krishna.py" -- "$B" anim 61 120 > "$B/r2.log" 2>&1 &
-  wait
+  "$MEDIA_BLENDER_PY" "$P/krishna.py" -- "$B" anim 1 120 > "$B/render.log" 2>&1
 fi
 [ "$(ls "$B"/f_*.png | wc -l)" -eq 120 ] || { echo "expected 120 frames" >&2; exit 1; }
 "$MEDIA_PY" "$MEDIA_ROOT/projects/diwali-2026/sounds.py" "$B/sfx" --duration 10 >/dev/null
