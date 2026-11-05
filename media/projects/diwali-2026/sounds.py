@@ -69,7 +69,7 @@ def drone(seconds):
     pattern = [(pa, 0.0), (sa * 2, 1.15), (sa * 2, 2.05), (sa, 2.95)]  # one cycle of four strings
     cycle = 4.2
     n = int(seconds * SR)
-    out = np.zeros(n + 8 * SR)
+    out = np.zeros(n + int((cycle + 8) * SR))  # room for the last cycle's plucks to ring out
     c, seed = 0.0, 0
     while c < seconds:
         for f, off in pattern:
