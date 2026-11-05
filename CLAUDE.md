@@ -64,7 +64,7 @@ Repo safety: never force-push, delete repo files, or add new dependencies withou
 
 ## 5. Installed toolkit
 
-Plugins are declared in `.claude/settings.json`. CLI tools (headroom, agent-reach, crewai) are installed by `.claude/hooks/setup-tools.sh`. Run it by hand with `CLAUDE_CODE_REMOTE=true bash .claude/hooks/setup-tools.sh` until it is registered as a SessionStart hook.
+Plugins are declared in `.claude/settings.json`. In cloud sessions, the "shopify" environment's setup script installs the CLI tools. On a local machine, run `CLAUDE_CODE_REMOTE=true bash .claude/hooks/setup-tools.sh` (it covers headroom, agent-reach, crewai only).
 
 | Tool | Source | What it is for |
 |---|---|---|
