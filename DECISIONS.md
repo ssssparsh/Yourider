@@ -23,3 +23,10 @@ Append only. Newest at the bottom.
 
 - Use Meta's official "Facebook & Instagram" sales channel inside Shopify admin to run Meta ads from the store admin. No custom build.
 - Claude side: one claude.ai Project with the Shopify connector. A Meta connector is added later only if Shopify's own marketing data is not enough.
+
+## 2026-11-05: Graphify and scrapers added
+
+- Installed CLIs: Graphify (`graphifyy`), Crawl4AI, Scrapy, Crawlee (Python, with BeautifulSoup extra). Each tested on a local page; outside sites are blocked by this environment's network allowlist.
+- Crawl4AI pinned to Playwright 1.63.0 so it uses the browser preinstalled in `/opt/pw-browsers`.
+- `graphify install --project` added a skill, a CLAUDE.md section, and two PreToolUse hooks to `.claude/settings.json`.
+- Tool reinstall now lives in the "shopify" cloud environment's setup script. `.claude/hooks/setup-tools.sh` is kept for local machines.
